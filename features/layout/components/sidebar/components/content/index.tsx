@@ -11,7 +11,7 @@ import { Pages } from './components/pages';
 
 // Mobile and desktop sidebar content.
 // Kept as a client component so it can render inside the mobile Sheet.
-export const SidebarContent = async ({
+export const SidebarContent = ({
   preloadedUser,
   orgId,
 }: {

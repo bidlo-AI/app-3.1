@@ -24,7 +24,7 @@ export const NavLink = ({
       <Link href={href} aria-label={label} className="flex-1 min-w-0">
         <Button
           className={buttonClassName}
-          style={{ padding: '0 8px', paddingLeft: 8 + indent * 12 }}
+          style={{ padding: '0 8px', paddingLeft: 8 + indent * 8 }}
           variant="ghost"
           size="sm"
         >

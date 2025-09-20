@@ -1,6 +1,6 @@
 'use client';
 
-import { Plus, Users, ChevronRight } from 'lucide-react';
+import { Plus, Users, ChevronRight, File } from 'lucide-react';
 import { api } from '@/convex/_generated/api';
 import { useQuery, useMutation } from 'convex/react';
 import { Button } from '@/components/ui/button';
@@ -8,11 +8,39 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { NavLink } from './nav-link';
 import { useMemo } from 'react';
 import { Id } from '@/convex/_generated/dataModel';
-import { File } from 'lucide-react';
-import { useObservable, Show, observer } from '@legendapp/state/react';
+import { useObservable, Show, observer, use$ } from '@legendapp/state/react';
 import { cn } from '@/lib/utils';
 import { Observable } from '@legendapp/state';
-import { use$ } from '@legendapp/state/react';
+
+// Reusable add button with tooltip to reduce duplication across sections and items
+const AddIconButton = ({
+  ariaLabel,
+  tooltipText,
+  className,
+  onClick,
+}: {
+  ariaLabel: string;
+  tooltipText: string;
+  className?: string;
+  onClick: () => void;
+}) => {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          size="icon"
+          variant="ghost"
+          aria-label={ariaLabel}
+          className={cn('text-muted-foreground-opaque', className)}
+          onClick={onClick}
+        >
+          <Plus className="size-4" />
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent side="bottom">{tooltipText}</TooltipContent>
+    </Tooltip>
+  );
+};
 
 const ExpandButton = ({ open$, className }: { open$: Observable<boolean>; className: string }) => {
   const open = use$(open$);
@@ -37,6 +65,28 @@ export const Pages = ({ orgId }: { orgId: string }) => {
   const createPage = useMutation(api.blocks.createPage);
   const createTeam = useMutation(api.teams.createTeam);
 
+  // Centralized helper for creating pages to avoid repeating payload construction
+  const createNewPage = async ({
+    scope,
+    teamId,
+    parentId,
+    title = 'Untitled',
+  }: {
+    scope: 'private' | 'team';
+    teamId?: Id<'teams'>;
+    parentId?: Id<'blocks'>;
+    title?: string;
+  }) => {
+    if (!orgId) return;
+    await createPage({
+      workosOrgId: orgId,
+      scope,
+      teamId,
+      title,
+      parentId,
+    });
+  };
+
   const privatePages = useQuery(api.blocks.listPrivatePages, orgId ? { workosOrgId: orgId } : 'skip');
   const teamSections = useQuery(api.blocks.listTeamPagesForUser, orgId ? { workosOrgId: orgId } : 'skip');
 
@@ -46,13 +96,58 @@ export const Pages = ({ orgId }: { orgId: string }) => {
   );
 
   const onAddPrivate = async () => {
-    if (!orgId) return;
-    await createPage({ workosOrgId: orgId, scope: 'private', title: 'Untitled' });
+    await createNewPage({ scope: 'private' });
   };
 
   const onAddTeam = async (teamId: Id<'teams'>) => {
-    if (!orgId) return;
-    await createPage({ workosOrgId: orgId, scope: 'team', teamId, title: 'Untitled' });
+    await createNewPage({ scope: 'team', teamId });
+  };
+
+  const TeamItem = ({
+    teamId,
+    teamName,
+    pages,
+  }: {
+    teamId: Id<'teams'>;
+    teamName: string;
+    pages: { _id: string; title: string }[];
+  }) => {
+    const open$ = useObservable(true);
+    return (
+      <div className="flex flex-col gap-px">
+        <div className="flex items-center gap-2 text-muted-foreground justify-between h-7.5 px-2 rounded hover:bg-hover cursor-pointer flex-1">
+          <div
+            className="flex relative items-center gap-2 flex-1 min-w-0 group/team"
+            role="button"
+            onClick={() => open$.set(!open$.get())}
+          >
+            <ExpandButton open$={open$} className="group-hover/team:opacity-100 opacity-0 absolute -inset-px" />
+            <Users className="size-5 shrink-0 opacity-100 group-hover/team:opacity-0" />
+            <span className="font-semibold truncate text-start w-full">{teamName}</span>
+          </div>
+          <AddIconButton
+            ariaLabel={`Add page to ${teamName}`}
+            tooltipText="Add page"
+            className="size-7"
+            onClick={() => onAddTeam(teamId)}
+          />
+        </div>
+        <Show if={open$}>
+          <div className="flex flex-col gap-px">
+            {pages.map((p) => (
+              <PageItem
+                key={p._id}
+                id={p._id as Id<'blocks'>}
+                title={p.title}
+                indent={1}
+                scope="team"
+                teamId={teamId}
+              />
+            ))}
+          </div>
+        </Show>
+      </div>
+    );
   };
 
   const PageItem = ({
@@ -84,12 +179,9 @@ export const Pages = ({ orgId }: { orgId: string }) => {
           icon={<IconContent />}
           indent={indent}
           onAddChild={async () => {
-            if (!orgId) return;
-            await createPage({
-              workosOrgId: orgId,
+            await createNewPage({
               scope,
               teamId: scope === 'team' ? (teamId as Id<'teams'>) : undefined,
-              title: 'Untitled',
               parentId: id,
             });
           }}
@@ -99,7 +191,7 @@ export const Pages = ({ orgId }: { orgId: string }) => {
             {Array.isArray(children) && children.length === 0 && (
               <div
                 className="flex items-center h-7.5 text-muted-foreground-opaque"
-                style={{ padding: '0 8px', paddingLeft: 8 + (indent + 1) * 12 }}
+                style={{ padding: '0 8px', paddingLeft: 8 + (indent + 1) * 8 }}
               >
                 <span className="opacity-50">No pages inside</span>
               </div>
@@ -134,41 +226,12 @@ export const Pages = ({ orgId }: { orgId: string }) => {
       >
         <div className="flex flex-col gap-1">
           {teamSections?.map((section) => (
-            <div key={section.team._id} className="flex flex-col gap-px">
-              <div
-                className="flex items-center gap-2 text-muted-foreground justify-between h-7.5 px-2 rounded hover:bg-hover cursor-pointer flex-1"
-                role="button"
-              >
-                <Users className="size-5 shrink-0" />
-                <span className="font-semibold truncate text-start w-full">{section.team.name}</span>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      aria-label={`Add page to ${section.team.name}`}
-                      className="size-7 text-muted-foreground-opaque"
-                      onClick={() => onAddTeam(section.team._id as Id<'teams'>)}
-                    >
-                      <Plus className="size-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom">Add page</TooltipContent>
-                </Tooltip>
-              </div>
-              <div className="flex flex-col gap-px">
-                {section.pages.map((p) => (
-                  <PageItem
-                    key={p._id}
-                    id={p._id as Id<'blocks'>}
-                    title={p.title}
-                    indent={1}
-                    scope="team"
-                    teamId={section.team._id as Id<'teams'>}
-                  />
-                ))}
-              </div>
-            </div>
+            <TeamItem
+              key={section.team._id}
+              teamId={section.team._id as Id<'teams'>}
+              teamName={section.team.name}
+              pages={section.pages as { _id: string; title: string }[]}
+            />
           ))}
         </div>
       </Section>
@@ -204,20 +267,7 @@ const Section = ({
         role="button"
       >
         <span>{title}</span>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              size="icon"
-              variant="ghost"
-              aria-label="Add private page"
-              className="text-muted-foreground-opaque"
-              onClick={onAdd}
-            >
-              <Plus className="size-4" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent side="bottom">{tooltip}</TooltipContent>
-        </Tooltip>
+        <AddIconButton ariaLabel={tooltip} tooltipText={tooltip} onClick={onAdd} />
       </div>
       <Show if={open$}>
         <div>{children}</div>
