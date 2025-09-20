@@ -1,6 +1,6 @@
 'use client';
 
-import { SquarePlus, Users } from 'lucide-react';
+import { Plus, Users, ChevronRight } from 'lucide-react';
 import { api } from '@/convex/_generated/api';
 import { useQuery, useMutation } from 'convex/react';
 import { Button } from '@/components/ui/button';
@@ -9,8 +9,29 @@ import { NavLink } from './nav-link';
 import { useMemo } from 'react';
 import { Id } from '@/convex/_generated/dataModel';
 import { File } from 'lucide-react';
-import { useObservable } from '@legendapp/state/react';
-import { Show } from '@legendapp/state/react';
+import { useObservable, Show, observer } from '@legendapp/state/react';
+import { cn } from '@/lib/utils';
+import { Observable } from '@legendapp/state';
+import { use$ } from '@legendapp/state/react';
+
+const ExpandButton = ({ open$, className }: { open$: Observable<boolean>; className: string }) => {
+  const open = use$(open$);
+
+  return (
+    <div
+      role="button"
+      aria-label={open ? 'Collapse' : 'Expand'}
+      onClick={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        open$.set(!open);
+      }}
+      className={cn(className, 'size-5 rounded hover:bg-hover flex items-center justify-center')}
+    >
+      <ChevronRight className={cn('size-4 text-muted-foreground-opaque', open && 'rotate-90')} />
+    </div>
+  );
+};
 
 export const Pages = ({ orgId }: { orgId: string }) => {
   const createPage = useMutation(api.blocks.createPage);
@@ -48,12 +69,19 @@ export const Pages = ({ orgId }: { orgId: string }) => {
     teamId?: Id<'teams'>;
   }) => {
     const children = useQuery(api.blocks.listChildren, id ? { parentId: id } : 'skip');
+    const open$ = useObservable(false);
+    const IconContent = observer(() => (
+      <span className="relative inline-flex items-center justify-center size-4.5 shrink-0">
+        <File className={cn('size-4 group-hover:opacity-0')} />
+        <ExpandButton open$={open$} className="group-hover:opacity-100 opacity-0 absolute -inset-px" />
+      </span>
+    ));
     return (
       <>
         <NavLink
           href={`/${id}`}
           label={title}
-          icon={<File className="size-4.5" />}
+          icon={<IconContent />}
           indent={indent}
           onAddChild={async () => {
             if (!orgId) return;
@@ -66,16 +94,28 @@ export const Pages = ({ orgId }: { orgId: string }) => {
             });
           }}
         />
-        {children?.map((c) => (
-          <PageItem
-            key={c._id}
-            id={c._id as Id<'blocks'>}
-            title={c.title}
-            indent={indent + 1}
-            scope={scope}
-            teamId={teamId}
-          />
-        ))}
+        <Show if={open$}>
+          <div>
+            {Array.isArray(children) && children.length === 0 && (
+              <div
+                className="flex items-center h-7.5 text-muted-foreground-opaque"
+                style={{ padding: '0 8px', paddingLeft: 8 + (indent + 1) * 12 }}
+              >
+                <span className="opacity-50">No pages inside</span>
+              </div>
+            )}
+            {children?.map((c) => (
+              <PageItem
+                key={c._id}
+                id={c._id as Id<'blocks'>}
+                title={c.title}
+                indent={indent + 1}
+                scope={scope}
+                teamId={teamId}
+              />
+            ))}
+          </div>
+        </Show>
       </>
     );
   };
@@ -94,29 +134,27 @@ export const Pages = ({ orgId }: { orgId: string }) => {
       >
         <div className="flex flex-col gap-1">
           {teamSections?.map((section) => (
-            <div key={section.team._id} className="flex flex-col gap-1">
-              <div className="flex items-center justify-between px-1">
-                <div
-                  className="flex items-center gap-2 text-muted-foreground justify-between h-7.5 px-2 rounded hover:bg-hover cursor-pointer flex-1"
-                  role="button"
-                >
-                  <Users className="size-5 shrink-0" />
-                  <span className="font-semibold truncate text-start w-full">{section.team.name}</span>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        aria-label={`Add page to ${section.team.name}`}
-                        className="text-muted-foreground-opaque"
-                        onClick={() => onAddTeam(section.team._id as Id<'teams'>)}
-                      >
-                        <SquarePlus className="size-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent side="bottom">Add page</TooltipContent>
-                  </Tooltip>
-                </div>
+            <div key={section.team._id} className="flex flex-col gap-px">
+              <div
+                className="flex items-center gap-2 text-muted-foreground justify-between h-7.5 px-2 rounded hover:bg-hover cursor-pointer flex-1"
+                role="button"
+              >
+                <Users className="size-5 shrink-0" />
+                <span className="font-semibold truncate text-start w-full">{section.team.name}</span>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      aria-label={`Add page to ${section.team.name}`}
+                      className="size-7 text-muted-foreground-opaque"
+                      onClick={() => onAddTeam(section.team._id as Id<'teams'>)}
+                    >
+                      <Plus className="size-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">Add page</TooltipContent>
+                </Tooltip>
               </div>
               <div className="flex flex-col gap-px">
                 {section.pages.map((p) => (
@@ -124,7 +162,7 @@ export const Pages = ({ orgId }: { orgId: string }) => {
                     key={p._id}
                     id={p._id as Id<'blocks'>}
                     title={p.title}
-                    indent={0}
+                    indent={1}
                     scope="team"
                     teamId={section.team._id as Id<'teams'>}
                   />
@@ -175,7 +213,7 @@ const Section = ({
               className="text-muted-foreground-opaque"
               onClick={onAdd}
             >
-              <SquarePlus className="size-4" />
+              <Plus className="size-4" />
             </Button>
           </TooltipTrigger>
           <TooltipContent side="bottom">{tooltip}</TooltipContent>
