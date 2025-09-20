@@ -8,11 +8,17 @@ import { api } from '@/convex/_generated/api';
 // import { Crumbs } from "./components/crumbs";
 // import { TeamPresence } from "./components/team-presence/presence-client";
 
-export const Header = ({ preloadedUser }: { preloadedUser: Preloaded<typeof api.users.getUser> }) => (
+export const Header = ({
+  preloadedUser,
+  orgId,
+}: {
+  preloadedUser: Preloaded<typeof api.users.getUser>;
+  orgId: string;
+}) => (
   <>
     <div className="spacer-l" />
-    <SidebarActions preloadedUser={preloadedUser} />
-    <OrgSelect />
+    <SidebarActions preloadedUser={preloadedUser} orgId={orgId} />
+    <OrgSelect orgId={orgId} />
     <Suspense fallback={null}>
       <AgentActions />
     </Suspense>

@@ -99,7 +99,8 @@ export default defineSchema({
     position: v.number(),
     ancestors: v.array(v.id('blocks')),
     depth: v.number(),
-    rootId: v.id('blocks'),
+    // Optional during create; set to own id post-insert for top-level pages
+    rootId: v.optional(v.id('blocks')),
 
     // Content
     content: v.optional(v.any()),

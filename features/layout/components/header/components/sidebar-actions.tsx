@@ -10,7 +10,13 @@ import { Show } from '@legendapp/state/react';
 import { Preloaded } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 
-export const SidebarActions = ({ preloadedUser }: { preloadedUser: Preloaded<typeof api.users.getUser> }) => {
+export const SidebarActions = ({
+  preloadedUser,
+  orgId,
+}: {
+  preloadedUser: Preloaded<typeof api.users.getUser>;
+  orgId: string;
+}) => {
   const sidebar$ = useSidebar();
 
   return (
@@ -30,7 +36,7 @@ export const SidebarActions = ({ preloadedUser }: { preloadedUser: Preloaded<typ
                 <SheetTitle>Mobile Sidebar</SheetTitle>
               </SheetHeader>
             </VisuallyHidden>
-            <SidebarContent preloadedUser={preloadedUser} />
+            <SidebarContent preloadedUser={preloadedUser} orgId={orgId} />
           </SheetContent>
         </Sheet>
       </div>

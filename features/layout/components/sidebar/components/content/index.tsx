@@ -11,7 +11,13 @@ import { Pages } from './components/pages';
 
 // Mobile and desktop sidebar content.
 // Kept as a client component so it can render inside the mobile Sheet.
-export const SidebarContent = ({ preloadedUser }: { preloadedUser: Preloaded<typeof api.users.getUser> }) => {
+export const SidebarContent = async ({
+  preloadedUser,
+  orgId,
+}: {
+  preloadedUser: Preloaded<typeof api.users.getUser>;
+  orgId: string;
+}) => {
   return (
     <>
       <Header preloadedUser={preloadedUser} />
@@ -21,7 +27,7 @@ export const SidebarContent = ({ preloadedUser }: { preloadedUser: Preloaded<typ
       </div>
       <div className="flex flex-col px-2 mb-5 gap-5">
         <div className="flex flex-col gap-1">
-          <Pages />
+          <Pages orgId={orgId} />
         </div>
         <div className="flex flex-col gap-1">
           <Data />
