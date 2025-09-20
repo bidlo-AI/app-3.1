@@ -1,8 +1,6 @@
 import { defineSchema, defineTable } from 'convex/server';
 import { v } from 'convex/values';
 
-//! needs indexing
-
 export default defineSchema({
   users: defineTable({
     email: v.string(),
@@ -57,13 +55,157 @@ export default defineSchema({
     .index('by_email', ['email'])
     .index('by_workos_invite_id', ['workos_invite_id']),
 
+  // ------------------------------------------------------------
+  // TEAMS
+  // ------------------------------------------------------------
+  teams: defineTable({
+    organizationId: v.id('organizations'),
+    name: v.string(),
+    visibility: v.union(v.literal('open'), v.literal('closed'), v.literal('private')),
+    createdAt: v.number(),
+    createdBy: v.id('users'),
+  })
+    .index('by_org', ['organizationId'])
+    .index('by_org_name', ['organizationId', 'name']),
+
+  team_members: defineTable({
+    teamId: v.id('teams'),
+    userId: v.id('users'),
+    role: v.union(v.literal('owner'), v.literal('admin'), v.literal('member')),
+    createdAt: v.number(),
+  })
+    .index('by_team', ['teamId'])
+    .index('by_user', ['userId']),
+
+  // ------------------------------------------------------------
+  // BLOCK GRAPH
+  // ------------------------------------------------------------
+  blocks: defineTable({
+    organizationId: v.id('organizations'),
+    ownerId: v.id('users'),
+    teamId: v.optional(v.id('teams')),
+    scope: v.union(v.literal('private'), v.literal('team'), v.literal('org'), v.literal('custom')),
+    type: v.union(
+      v.literal('page'),
+      v.literal('widget'),
+      v.literal('file'),
+      v.literal('thread'),
+      v.literal('document'),
+    ),
+    title: v.optional(v.string()),
+
+    // Hierarchy
+    parentId: v.optional(v.id('blocks')),
+    position: v.number(),
+    ancestors: v.array(v.id('blocks')),
+    depth: v.number(),
+    rootId: v.id('blocks'),
+
+    // Content
+    content: v.optional(v.any()),
+
+    // Lifecycle / audit
+    isArchived: v.optional(v.boolean()),
+    archivedAt: v.optional(v.number()),
+    deletedAt: v.optional(v.number()),
+    createdAt: v.number(),
+    createdBy: v.id('users'),
+    updatedAt: v.number(),
+    updatedBy: v.id('users'),
+  })
+    .index('by_org', ['organizationId'])
+    .index('by_parent_pos', ['parentId', 'position'])
+    .index('by_owner_scope', ['ownerId', 'scope'])
+    .index('by_team', ['teamId'])
+    .index('by_type', ['type'])
+    .index('by_root_pos', ['rootId', 'position']),
+
+  // ------------------------------------------------------------
+  // PERMISSIONS
+  // ------------------------------------------------------------
+  block_permissions: defineTable({
+    blockId: v.id('blocks'),
+    subject: v.union(
+      v.object({ kind: v.literal('user'), userId: v.id('users') }),
+      v.object({ kind: v.literal('team'), teamId: v.id('teams') }),
+      v.object({ kind: v.literal('org'), organizationId: v.id('organizations') }),
+      v.object({ kind: v.literal('public') }),
+    ),
+    level: v.union(v.literal('read'), v.literal('write'), v.literal('admin')),
+    subjectKey: v.string(), // e.g., user:ID, team:ID, org:ID, public
+    createdAt: v.number(),
+    createdBy: v.id('users'),
+  })
+    .index('by_block', ['blockId'])
+    .index('by_subjectKey', ['subjectKey'])
+    .index('by_block_subject', ['blockId', 'subjectKey']),
+
+  // ------------------------------------------------------------
+  // SHARE LINKS
+  // ------------------------------------------------------------
+  share_links: defineTable({
+    blockId: v.id('blocks'),
+    token: v.string(),
+    level: v.union(v.literal('read'), v.literal('write')),
+    expiresAt: v.optional(v.number()),
+    createdAt: v.number(),
+    createdBy: v.id('users'),
+  })
+    .index('by_token', ['token'])
+    .index('by_block', ['blockId']),
+
+  // ------------------------------------------------------------
+  // FILES (metadata)
+  //! shuold just be moved to conent or the content of a new "file-chunks" block type
+  // ------------------------------------------------------------
+  files: defineTable({
+    blockId: v.id('blocks'),
+    organizationId: v.id('organizations'),
+    storageKey: v.string(),
+    name: v.string(),
+    mime: v.string(),
+    size: v.number(),
+    sha256: v.optional(v.string()),
+    uploadedBy: v.id('users'),
+    uploadedAt: v.number(),
+  })
+    .index('by_block', ['blockId'])
+    .index('by_org', ['organizationId']),
+
+  // ------------------------------------------------------------
+  // THREADS (metadata)
+  //! tbd on how to implement threads
+  // ------------------------------------------------------------
+  threads: defineTable({
+    blockId: v.id('blocks'),
+    organizationId: v.id('organizations'),
+    createdBy: v.id('users'),
+    model: v.optional(v.string()),
+    status: v.optional(v.union(v.literal('open'), v.literal('closed'))),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index('by_org', ['organizationId'])
+    .index('by_block', ['blockId']),
+
   messages: defineTable({
+    // legacy fields
     content: v.string(),
     author: v.string(), // user email or name
     authorId: v.string(), // workos user id
     organizationId: v.string(), // workos organization id
     timestamp: v.number(),
-  }).index('by_organization', ['organizationId']),
+
+    // new optional fields
+    threadId: v.optional(v.id('threads')),
+    role: v.optional(v.union(v.literal('user'), v.literal('assistant'), v.literal('system'))),
+    blockId: v.optional(v.id('blocks')),
+    meta: v.optional(v.any()),
+    orgId: v.optional(v.id('organizations')),
+    userId: v.optional(v.id('users')),
+  })
+    .index('by_organization', ['organizationId'])
+    .index('by_thread', ['threadId']),
 
   // ------------------------------------------------------------
   // PRESENCE
