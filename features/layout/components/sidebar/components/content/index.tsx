@@ -3,6 +3,7 @@ import { api } from '@/convex/_generated/api';
 import { Preloaded } from 'convex/react';
 import { preloadQuery } from 'convex/nextjs';
 import { Suspense } from 'react';
+import { LoadingContent } from './components/loading';
 
 // menu items
 import { Search } from './components/search';
@@ -21,32 +22,26 @@ export const SidebarContent = ({
   preloadedUser: Preloaded<typeof api.users.getUser>;
   orgId: string;
   accessToken: string;
-}) => {
-  return (
-    <>
-      <Header preloadedUser={preloadedUser} />
-      <div className="flex flex-col gap-px px-2 mb-2">
-        <Home />
-        <Search />
+}) => (
+  <>
+    <Header preloadedUser={preloadedUser} />
+    <div className="flex flex-col gap-px px-2 mb-2">
+      <Home />
+      <Search />
+    </div>
+    <div className="flex flex-col px-2 mb-5 gap-5">
+      <div className="flex flex-col gap-1">
+        <Suspense fallback={<LoadingContent />}>
+          <Content orgId={orgId} accessToken={accessToken} />
+        </Suspense>
       </div>
-      <div className="flex flex-col px-2 mb-5 gap-5">
-        <div className="flex flex-col gap-1">
-          <Suspense fallback={<LoadingContent />}>
-            <Content orgId={orgId} accessToken={accessToken} />
-          </Suspense>
-        </div>
-        <div className="flex flex-col gap-1">
-          <Data />
-          <Settings />
-        </div>
+      <div className="flex flex-col gap-1">
+        <Data />
+        <Settings />
       </div>
-    </>
-  );
-};
-
-const LoadingContent = () => {
-  return <div>Loading...</div>;
-};
+    </div>
+  </>
+);
 
 // Server component that preloads sidebar queries for hydration.
 // This reduces client waterfalls and keeps live reactivity via usePreloadedQuery.

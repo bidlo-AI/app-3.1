@@ -1,17 +1,17 @@
 'use client';
 
-import { Plus, Users, ChevronRight, File } from 'lucide-react';
-import { api } from '@/convex/_generated/api';
 import { useQuery, useMutation, Preloaded, usePreloadedQuery } from 'convex/react';
-import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import Link from 'next/link';
+import { useObservable, Show, observer, use$ } from '@legendapp/state/react';
+import { Plus, Users, ChevronRight, File } from 'lucide-react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useMemo, memo, useCallback } from 'react';
 import { Id } from '@/convex/_generated/dataModel';
-import { useObservable, Show, observer, use$ } from '@legendapp/state/react';
-import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
 import { Observable } from '@legendapp/state';
+import { api } from '@/convex/_generated/api';
+import { cn } from '@/lib/utils';
+import Link from 'next/link';
 
 // Reusable add button with tooltip to reduce duplication across sections and items
 const AddIconButton = ({
