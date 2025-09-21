@@ -5,16 +5,26 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { useObservable, Show, observer, use$ } from '@legendapp/state/react';
 import { Plus, Users, ChevronRight, File } from 'lucide-react';
 import { useRouter, usePathname } from 'next/navigation';
-import { useMemo, memo, useCallback, useState } from 'react';
+import { useMemo, memo, useCallback, useState, useRef } from 'react';
 import { Id, Doc } from '@/convex/_generated/dataModel';
 import { Button } from '@/components/ui/button';
 import { Observable } from '@legendapp/state';
 import { api } from '@/convex/_generated/api';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
-import { DndContext, PointerSensor, useSensor, useSensors, DragEndEvent, DraggableAttributes } from '@dnd-kit/core';
+import {
+  DndContext,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+  DraggableAttributes,
+  DragStartEvent,
+  DragOverlay,
+} from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { restrictToVerticalAxis, restrictToParentElement } from '@dnd-kit/modifiers';
 
 // Reusable add button with tooltip to reduce duplication across sections and items
 const AddIconButton = ({
@@ -336,6 +346,9 @@ export const Pages = memo(function Pages({
     const persisted = user?.sidebar_sections_order as SidebarSectionId[] | undefined;
     return Array.isArray(persisted) && persisted.length > 0 ? persisted : ['teams', 'private'];
   });
+  const [activeSectionId, setActiveSectionId] = useState<SidebarSectionId | null>(null);
+  const [activeDims, setActiveDims] = useState<{ width: number; height: number } | null>(null);
+  const sectionRefs = useRef<Record<SidebarSectionId, HTMLElement | null>>({ teams: null, private: null });
 
   // DnD sensors: activate drag if pointer moved more than 3px
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 3 } }));
@@ -395,16 +408,39 @@ export const Pages = memo(function Pages({
       setSectionOrder(next);
       // Persist in background
       void setSectionsOrder({ order: next });
+      setActiveSectionId(null);
+      setActiveDims(null);
     },
     [sectionOrder, setSectionsOrder],
   );
 
+  const handleDragStart = useCallback((event: DragStartEvent) => {
+    const id = event.active.id as SidebarSectionId;
+    setActiveSectionId(id);
+    const el = sectionRefs.current[id];
+    if (el) {
+      const rect = el.getBoundingClientRect();
+      setActiveDims({ width: rect.width, height: rect.height });
+    }
+  }, []);
+
   return (
-    <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
+    <DndContext
+      sensors={sensors}
+      onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
+      modifiers={[restrictToVerticalAxis, restrictToParentElement]}
+    >
       <SortableContext items={sectionOrder} strategy={verticalListSortingStrategy}>
         <div className="flex flex-col gap-1">
           {sectionOrder.map((sectionId) => (
-            <SortableSection key={sectionId} id={sectionId}>
+            <SortableSection
+              key={sectionId}
+              id={sectionId}
+              onNodeRef={(node) => {
+                sectionRefs.current[sectionId] = node;
+              }}
+            >
               {(drag) =>
                 sectionId === 'teams' ? (
                   <Section
@@ -452,6 +488,43 @@ export const Pages = memo(function Pages({
           ))}
         </div>
       </SortableContext>
+      <DragOverlay adjustScale={false} dropAnimation={null}>
+        {activeSectionId ? (
+          <div style={{ width: activeDims?.width, height: activeDims?.height }}>
+            {activeSectionId === 'teams' ? (
+              <Section title="Teams" onAdd={() => {}} tooltip="Add team">
+                <div className="flex flex-col gap-px">
+                  {teamSections?.map((section) => (
+                    <TeamItem
+                      key={section.team._id}
+                      teamId={section.team._id as Id<'teams'>}
+                      teamName={section.team.name}
+                      pages={section.pages as { _id: string; title: string }[]}
+                      onAddTeam={() => {}}
+                      createNewPage={() => Promise.resolve()}
+                    />
+                  ))}
+                </div>
+              </Section>
+            ) : (
+              <Section title="Private" onAdd={() => {}} tooltip="Add private page">
+                <div className="flex flex-col gap-px">
+                  {sortedPrivate?.map((p) => (
+                    <PageItem
+                      key={p._id}
+                      id={p._id as Id<'blocks'>}
+                      title={p.title}
+                      indent={0}
+                      scope="private"
+                      createNewPage={() => Promise.resolve()}
+                    />
+                  ))}
+                </div>
+              </Section>
+            )}
+          </div>
+        ) : null}
+      </DragOverlay>
     </DndContext>
   );
 });
@@ -461,6 +534,7 @@ type DragHandleProps = {
   attributes: DraggableAttributes;
   listeners?: Record<string, unknown>;
   style?: React.CSSProperties;
+  dragging?: boolean;
 };
 
 const Section = ({
@@ -478,7 +552,11 @@ const Section = ({
 }) => {
   const open$ = useObservable(true);
   return (
-    <div ref={drag?.setNodeRef} style={drag?.style} className="flex flex-col gap-px mb-3 ">
+    <div
+      ref={drag?.setNodeRef}
+      style={drag?.style}
+      className={cn('flex flex-col gap-px mb-3 ', drag?.dragging && 'opacity-0')}
+    >
       <div {...(drag?.attributes ?? {})} {...(drag?.listeners as object)}>
         <ListRow
           label={title}
@@ -498,11 +576,20 @@ const Section = ({
 const SortableSection = ({
   id,
   children,
+  onNodeRef,
 }: {
   id: 'teams' | 'private';
   children: (drag: DragHandleProps) => React.ReactNode;
+  onNodeRef?: (node: HTMLElement | null) => void;
 }) => {
-  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id });
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
   const style = useMemo(() => ({ transform: CSS.Transform.toString(transform), transition }), [transform, transition]);
-  return <>{children({ attributes, listeners, setNodeRef, style })}</>;
+  const combinedRef = useCallback(
+    (node: HTMLElement | null) => {
+      setNodeRef(node);
+      if (onNodeRef) onNodeRef(node);
+    },
+    [setNodeRef, onNodeRef],
+  );
+  return <>{children({ attributes, listeners, setNodeRef: combinedRef, style, dragging: isDragging })}</>;
 };
