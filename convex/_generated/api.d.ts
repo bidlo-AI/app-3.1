@@ -14,6 +14,7 @@ import type {
   FunctionReference,
 } from "convex/server";
 import type * as blocks from "../blocks.js";
+import type * as helpers from "../helpers.js";
 import type * as http from "../http.js";
 import type * as organization_invites from "../organization_invites.js";
 import type * as organization_members from "../organization_members.js";
@@ -33,6 +34,7 @@ import type * as workos from "../workos.js";
  */
 declare const fullApi: ApiFromModules<{
   blocks: typeof blocks;
+  helpers: typeof helpers;
   http: typeof http;
   organization_invites: typeof organization_invites;
   organization_members: typeof organization_members;

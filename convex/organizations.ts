@@ -7,6 +7,10 @@ const organizationFields = schema.tables.organizations.validator.fields;
 
 export const { create, destroy, update } = crud(schema, 'organizations');
 
+// --------------------------------
+// MUTATIONS
+// --------------------------------
+
 // Mutation to update organization name to "NEW NAME"
 export const updateOrganizationName = mutation({
   args: {
@@ -16,7 +20,7 @@ export const updateOrganizationName = mutation({
     // Find the organization by workos_id
     const organization = await ctx.db
       .query('organizations')
-      .filter((q) => q.eq(q.field('workos_id'), args.workos_id))
+      .withIndex('by_workos_id', (q) => q.eq('workos_id', args.workos_id))
       .first();
 
     if (!organization) {
@@ -38,6 +42,10 @@ export const updateOrganizationName = mutation({
   },
 });
 
+// --------------------------------
+// QUERIES
+// --------------------------------
+
 export const getUserOrganizations = query({
   handler: async (ctx) => {
     const user = await ctx.auth.getUserIdentity();
@@ -50,8 +58,7 @@ export const getUserOrganizations = query({
     // Get all organization memberships for this user
     const memberships = await ctx.db
       .query('organization_members')
-      .filter((q) => q.eq(q.field('workos_user_id'), workos_user_id))
-      .filter((q) => q.eq(q.field('status'), 'active'))
+      .withIndex('by_user_status', (q) => q.eq('workos_user_id', workos_user_id).eq('status', 'active'))
       .collect();
 
     // Get organization details for each membership
@@ -59,7 +66,7 @@ export const getUserOrganizations = query({
       memberships.map(async (membership) => {
         const organization = await ctx.db
           .query('organizations')
-          .filter((q) => q.eq(q.field('workos_id'), membership.workos_org_id))
+          .withIndex('by_workos_id', (q) => q.eq('workos_id', membership.workos_org_id))
           .first();
 
         if (!organization) return null;
@@ -94,7 +101,7 @@ export const getByWorkOSId = internalQuery({
   handler: async (ctx, args) => {
     const organization = await ctx.db
       .query('organizations')
-      .filter((q) => q.eq(q.field('workos_id'), args.workos_id))
+      .withIndex('by_workos_id', (q) => q.eq('workos_id', args.workos_id))
       .first();
     return organization;
   },

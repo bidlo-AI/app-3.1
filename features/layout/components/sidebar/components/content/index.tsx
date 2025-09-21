@@ -1,6 +1,8 @@
 import { Header } from './components/header';
 import { api } from '@/convex/_generated/api';
 import { Preloaded } from 'convex/react';
+import { preloadQuery } from 'convex/nextjs';
+import { Suspense } from 'react';
 
 // menu items
 import { Search } from './components/search';
@@ -14,9 +16,11 @@ import { Pages } from './components/pages';
 export const SidebarContent = ({
   preloadedUser,
   orgId,
+  accessToken,
 }: {
   preloadedUser: Preloaded<typeof api.users.getUser>;
   orgId: string;
+  accessToken: string;
 }) => {
   return (
     <>
@@ -27,7 +31,9 @@ export const SidebarContent = ({
       </div>
       <div className="flex flex-col px-2 mb-5 gap-5">
         <div className="flex flex-col gap-1">
-          <Pages orgId={orgId} />
+          <Suspense fallback={<LoadingContent />}>
+            <Content orgId={orgId} accessToken={accessToken} />
+          </Suspense>
         </div>
         <div className="flex flex-col gap-1">
           <Data />
@@ -37,3 +43,20 @@ export const SidebarContent = ({
     </>
   );
 };
+
+const LoadingContent = () => {
+  return <div>Loading...</div>;
+};
+
+// Server component that preloads sidebar queries for hydration.
+// This reduces client waterfalls and keeps live reactivity via usePreloadedQuery.
+async function Content({ orgId, accessToken }: { orgId: string; accessToken: string }) {
+  const [preloadedPrivatePages, preloadedTeamSections] = await Promise.all([
+    preloadQuery(api.blocks.listPrivatePages, { workosOrgId: orgId }, { token: accessToken }),
+    preloadQuery(api.blocks.listTeamPagesForUser, { workosOrgId: orgId }, { token: accessToken }),
+  ]);
+
+  return (
+    <Pages orgId={orgId} preloadedPrivatePages={preloadedPrivatePages} preloadedTeamSections={preloadedTeamSections} />
+  );
+}

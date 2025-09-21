@@ -1,30 +1,11 @@
-import { mutation, query, type QueryCtx, type MutationCtx } from './_generated/server';
+import { mutation, query } from './_generated/server';
 import { v } from 'convex/values';
 import type { Doc, Id } from './_generated/dataModel';
+import { getCurrentUserDoc, getOrgByWorkOSId } from './helpers';
 
-// Utility: get current user's Convex user doc by WorkOS user id
-async function getCurrentUserDoc(ctx: QueryCtx | MutationCtx) {
-  const identity = await ctx.auth.getUserIdentity();
-  const workosUserId = identity?.subject;
-  if (!workosUserId) throw new Error('User not authenticated');
-
-  const userDoc = await ctx.db
-    .query('users')
-    .withIndex('by_workos_id', (q) => q.eq('workos_id', workosUserId))
-    .first();
-  if (!userDoc) throw new Error('User not found');
-  return userDoc;
-}
-
-// Utility: get org doc from WorkOS org id
-async function getOrgByWorkOSId(ctx: QueryCtx | MutationCtx, workosOrgId: string) {
-  const orgDoc = await ctx.db
-    .query('organizations')
-    .withIndex('by_workos_id', (q) => q.eq('workos_id', workosOrgId))
-    .first();
-  if (!orgDoc) throw new Error('Organization not found');
-  return orgDoc;
-}
+// --------------------------------
+// QUERIES
+// --------------------------------
 
 // Fetch a block and its immediate children with basic permission checks
 export const getBlock = query({
@@ -37,10 +18,10 @@ export const getBlock = query({
     // Basic permission guard
     if (block.scope === 'private' && block.ownerId !== userDoc._id) throw new Error('Forbidden');
     if (block.scope === 'team') {
+      // Use composite index by_team_user to avoid filter scan
       const membership = await ctx.db
         .query('team_members')
-        .withIndex('by_team', (q) => q.eq('teamId', block.teamId!))
-        .filter((q) => q.eq(q.field('userId'), userDoc._id))
+        .withIndex('by_team_user', (q) => q.eq('teamId', block.teamId!).eq('userId', userDoc._id))
         .first();
       if (!membership) throw new Error('Forbidden');
     }
@@ -79,13 +60,15 @@ export const listPrivatePages = query({
     const userDoc = await getCurrentUserDoc(ctx);
     const orgDoc = await getOrgByWorkOSId(ctx, args.workosOrgId);
 
-    const pages = await ctx.db
+    // Fetch private top-level pages for this user within the organization using composite index
+    const candidatePages = await ctx.db
       .query('blocks')
-      .withIndex('by_owner_scope', (q) => q.eq('ownerId', userDoc._id).eq('scope', 'private'))
-      .filter((q) => q.eq(q.field('organizationId'), orgDoc._id))
-      .filter((q) => q.eq(q.field('type'), 'page'))
-      .filter((q) => q.eq(q.field('depth'), 0))
+      .withIndex('by_owner_scope_org', (q) =>
+        q.eq('ownerId', userDoc._id).eq('scope', 'private').eq('organizationId', orgDoc._id),
+      )
       .collect();
+
+    const pages = candidatePages.filter((p) => p.type === 'page' && p.depth === 0);
 
     // Sort by position ascending; fallback to createdAt
     pages.sort((a, b) => (a.position ?? 0) - (b.position ?? 0) || (a.createdAt ?? 0) - (b.createdAt ?? 0));
@@ -106,33 +89,34 @@ export const listTeamPagesForUser = query({
       .withIndex('by_user', (q) => q.eq('userId', userDoc._id))
       .collect();
 
-    // Fetch team docs and keep only those in the selected org
-    const teamDocs: Array<{ _id: Id<'teams'>; name: string; organizationId: Id<'organizations'> }> = [];
-    for (const m of memberships) {
-      const team = await ctx.db.get(m.teamId);
-      if (team && team.organizationId === orgDoc._id) teamDocs.push(team);
-    }
+    // Fetch team docs in parallel and keep only those in the selected org
+    const teamDocsRaw = await Promise.all(memberships.map((m) => ctx.db.get(m.teamId)));
+    const teamDocs = teamDocsRaw.filter((t): t is Doc<'teams'> => t !== null && t.organizationId === orgDoc._id);
 
-    // For each team, get top-level page blocks
+    // For each team, get top-level page blocks in parallel
+    const pagesByTeam = await Promise.all(
+      teamDocs.map((team) =>
+        ctx.db
+          .query('blocks')
+          .withIndex('by_team', (q) => q.eq('teamId', team._id))
+          .collect(),
+      ),
+    );
+
     const result: Array<{
       team: { _id: Id<'teams'>; name: string };
       pages: Array<{ _id: Id<'blocks'>; title: string; position?: number }>;
-    }> = [];
-    for (const team of teamDocs) {
-      const pages = await ctx.db
-        .query('blocks')
-        .withIndex('by_team', (q) => q.eq('teamId', team._id))
-        .filter((q) => q.eq(q.field('organizationId'), orgDoc._id))
-        .filter((q) => q.eq(q.field('scope'), 'team'))
-        .filter((q) => q.eq(q.field('type'), 'page'))
-        .filter((q) => q.eq(q.field('depth'), 0))
-        .collect();
+    }> = teamDocs.map((team, idx) => {
+      const teamPages = pagesByTeam[idx];
+      const pages = teamPages.filter(
+        (p) => p.organizationId === orgDoc._id && p.scope === 'team' && p.type === 'page' && p.depth === 0,
+      );
       pages.sort((a, b) => (a.position ?? 0) - (b.position ?? 0) || (a.createdAt ?? 0) - (b.createdAt ?? 0));
-      result.push({
+      return {
         team: { _id: team._id as Id<'teams'>, name: team.name },
         pages: pages.map((p) => ({ _id: p._id, title: p.title ?? 'Untitled', position: p.position })),
-      });
-    }
+      };
+    });
     // Sort teams by name for consistent UI
     result.sort((a, b) => a.team.name.localeCompare(b.team.name));
     return result;
@@ -150,10 +134,10 @@ export const listChildren = query({
     // Permission guard based on parent's scope
     if (parent.scope === 'private' && parent.ownerId !== userDoc._id) throw new Error('Forbidden');
     if (parent.scope === 'team') {
+      // Use composite index by_team_user to avoid filter scan
       const membership = await ctx.db
         .query('team_members')
-        .withIndex('by_team', (q) => q.eq('teamId', parent.teamId!))
-        .filter((q) => q.eq(q.field('userId'), userDoc._id))
+        .withIndex('by_team_user', (q) => q.eq('teamId', parent.teamId!).eq('userId', userDoc._id))
         .first();
       if (!membership) throw new Error('Forbidden');
     }
@@ -161,10 +145,11 @@ export const listChildren = query({
     const children = await ctx.db
       .query('blocks')
       .withIndex('by_parent_pos', (q) => q.eq('parentId', args.parentId))
-      .filter((q) => q.eq(q.field('type'), 'page'))
       .collect();
-    children.sort((a, b) => (a.position ?? 0) - (b.position ?? 0) || (a.createdAt ?? 0) - (b.createdAt ?? 0));
-    return children.map((c) => ({ _id: c._id, title: c.title ?? 'Untitled', position: c.position }));
+    // Filter type in-memory to avoid an extra index while leveraging parent+position index
+    const pageChildren = children.filter((c) => c.type === 'page');
+    pageChildren.sort((a, b) => (a.position ?? 0) - (b.position ?? 0) || (a.createdAt ?? 0) - (b.createdAt ?? 0));
+    return pageChildren.map((c) => ({ _id: c._id, title: c.title ?? 'Untitled', position: c.position }));
   },
 });
 
@@ -196,8 +181,7 @@ export const createPage = mutation({
       if (p.scope === 'team') {
         const membership = await ctx.db
           .query('team_members')
-          .withIndex('by_team', (q) => q.eq('teamId', p.teamId!))
-          .filter((q) => q.eq(q.field('userId'), userDoc._id))
+          .withIndex('by_team_user', (q) => q.eq('teamId', p.teamId!).eq('userId', userDoc._id))
           .first();
         if (!membership) throw new Error('Not a member of this team');
       }
@@ -216,8 +200,7 @@ export const createPage = mutation({
       if (team.organizationId !== orgDoc._id) throw new Error('Team does not belong to selected organization');
       const membership = await ctx.db
         .query('team_members')
-        .withIndex('by_team', (q) => q.eq('teamId', team._id))
-        .filter((q) => q.eq(q.field('userId'), userDoc._id))
+        .withIndex('by_team_user', (q) => q.eq('teamId', team._id).eq('userId', userDoc._id))
         .first();
       if (!membership) throw new Error('User is not a member of the team');
       teamId = team._id;

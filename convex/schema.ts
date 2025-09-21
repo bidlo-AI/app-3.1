@@ -44,7 +44,9 @@ export default defineSchema({
     workos_org_id: v.string(),
     workos_user_id: v.string(),
     workos_membership_id: v.string(),
-  }),
+  })
+    // Composite index to efficiently fetch active memberships by user
+    .index('by_user_status', ['workos_user_id', 'status']),
   organization_invites: defineTable({
     email: v.string(),
     workos_org_id: v.string(), // WorkOS organization ID
@@ -75,7 +77,9 @@ export default defineSchema({
     createdAt: v.number(),
   })
     .index('by_team', ['teamId'])
-    .index('by_user', ['userId']),
+    .index('by_user', ['userId'])
+    // Composite index to check membership for a team+user without filtering
+    .index('by_team_user', ['teamId', 'userId']),
 
   // ------------------------------------------------------------
   // BLOCK GRAPH
@@ -117,6 +121,8 @@ export default defineSchema({
     .index('by_org', ['organizationId'])
     .index('by_parent_pos', ['parentId', 'position'])
     .index('by_owner_scope', ['ownerId', 'scope'])
+    // Add organizationId to support queries scoped by org + owner + scope
+    .index('by_owner_scope_org', ['ownerId', 'scope', 'organizationId'])
     .index('by_team', ['teamId'])
     .index('by_type', ['type'])
     .index('by_root_pos', ['rootId', 'position']),

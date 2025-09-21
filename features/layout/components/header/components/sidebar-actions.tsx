@@ -30,13 +30,15 @@ export const SidebarActions = ({
               <span className="sr-only">Open sidebar</span>
             </Button>
           </SheetTrigger>
-          <SheetContent side="left" className="p-0 w-[240px]">
+          <SheetContent side="left" className="p-0 w-[240px]" hideCloseButton>
             <VisuallyHidden>
               <SheetHeader className="sr-only">
                 <SheetTitle>Mobile Sidebar</SheetTitle>
               </SheetHeader>
             </VisuallyHidden>
-            <SidebarContent preloadedUser={preloadedUser} orgId={orgId} />
+            <div>
+              <SidebarContent preloadedUser={preloadedUser} orgId={orgId} />
+            </div>
           </SheetContent>
         </Sheet>
       </div>

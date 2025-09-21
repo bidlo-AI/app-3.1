@@ -2,11 +2,11 @@
 
 import { Plus, Users, ChevronRight, File } from 'lucide-react';
 import { api } from '@/convex/_generated/api';
-import { useQuery, useMutation } from 'convex/react';
+import { useQuery, useMutation, Preloaded, usePreloadedQuery } from 'convex/react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { useMemo, memo, useCallback } from 'react';
 import { Id } from '@/convex/_generated/dataModel';
 import { useObservable, Show, observer, use$ } from '@legendapp/state/react';
@@ -32,14 +32,15 @@ const AddIconButton = ({
           size="icon"
           variant="ghost"
           aria-label={ariaLabel}
-          className={cn('text-muted-foreground-opaque', className)}
+          style={{ height: '20px', width: '20px' }}
+          className={cn('rounded text-muted-foreground-opaque', className)}
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
             onClick();
           }}
         >
-          <Plus className="size-5" />
+          <Plus className="size-4" />
         </Button>
       </TooltipTrigger>
       <TooltipContent side="bottom">{tooltipText}</TooltipContent>
@@ -79,8 +80,8 @@ type CreateNewPageHandler = (args: {
 // Presentational icon content for a page row with inline expand affordance
 const PageIcon = observer(({ open$ }: { open$: Observable<boolean> }) => (
   <span className="relative inline-flex items-center justify-center size-5 shrink-0">
-    <File className={cn('size-5 group-hover/page-row:opacity-0')} />
-    <ExpandButton open$={open$} className="group-hover/page-row:opacity-100 opacity-0 absolute -inset-px" />
+    <File className={cn('size-5 group-hover/list-row:opacity-0')} />
+    <ExpandButton open$={open$} className="group-hover/list-row:opacity-100 opacity-0 absolute -inset-px" />
   </span>
 ));
 
@@ -92,12 +93,75 @@ const EmptyStateRow = memo(function EmptyStateRow({
   indent: number;
   label?: string;
 }) {
+  // Memoize style object to avoid re-creating it on every render
+  const indentStyle = useMemo(() => ({ padding: '0 8px', paddingLeft: 8 + indent * 8 }), [indent]);
+  return (
+    <div className="flex items-center h-7.5 text-muted-foreground-opaque" style={indentStyle}>
+      <span className="opacity-50">{label}</span>
+    </div>
+  );
+});
+
+// Shared list row to unify layout for Team and Page items
+const ListRow = memo(function ListRow({
+  href,
+  label,
+  indent = 0,
+  leftIcon,
+  onLeftClick,
+  onAdd,
+  addAriaLabel,
+  addTooltip,
+  labelClassName,
+  selected,
+}: {
+  href?: string;
+  label: string;
+  indent?: number;
+  leftIcon?: React.ReactNode;
+  onLeftClick?: () => void;
+  onAdd?: () => void;
+  addAriaLabel?: string;
+  addTooltip?: string;
+  labelClassName?: string;
+  selected?: boolean;
+}) {
+  // Memoize style object to avoid identity changes on every render
+  const indentStyle = useMemo(() => ({ padding: '0 8px', paddingLeft: 8 + indent * 8 }), [indent]);
+  const Left = (
+    <div
+      role={onLeftClick ? 'button' : undefined}
+      onClick={onLeftClick}
+      className="flex items-center gap-2 min-w-0 pl-2 justify-start font-medium text-muted-foreground-opaque truncate"
+      style={indentStyle}
+    >
+      {leftIcon}
+      <span className={cn('', labelClassName, selected && 'text-foreground')}>{label}</span>
+    </div>
+  );
+
   return (
     <div
-      className="flex items-center h-7.5 text-muted-foreground-opaque"
-      style={{ padding: '0 8px', paddingLeft: 8 + indent * 8 }}
+      className={cn(
+        'cursor-pointer group/list-row flex items-center h-7.5 rounded-md hover:bg-hover pr-2',
+        selected && 'bg-hover',
+      )}
     >
-      <span className="opacity-50">{label}</span>
+      {href ? (
+        <Link href={href} prefetch={false} aria-label={label} className="flex-1 min-w-0">
+          {Left}
+        </Link>
+      ) : (
+        <div className="flex-1 min-w-0">{Left}</div>
+      )}
+      {onAdd && (
+        <AddIconButton
+          ariaLabel={addAriaLabel ?? 'Add'}
+          tooltipText={addTooltip ?? 'Add'}
+          className="size-7 opacity-0 group-hover/list-row:opacity-100 focus:opacity-100"
+          onClick={onAdd}
+        />
+      )}
     </div>
   );
 });
@@ -116,25 +180,19 @@ const PageRow = memo(function PageRow({
   icon: React.ReactNode;
   onAddChild: () => void;
 }) {
+  const pathname = usePathname();
+  const isSelected = pathname === href;
   return (
-    <div className="group/page-row flex items-center h-7.5 rounded hover:bg-hover pr-2">
-      <Link
-        style={{ padding: '0 8px', paddingLeft: 8 + indent * 8 }}
-        href={href}
-        prefetch
-        aria-label={title}
-        className="flex-1 flex items-center gap-2 min-w-0 pl-2 justify-start font-medium size-full text-muted-foreground-opaque truncate"
-      >
-        {icon}
-        {title}
-      </Link>
-      <AddIconButton
-        ariaLabel="Add subpage"
-        tooltipText="Add subpage"
-        className="size-7 opacity-0 group-hover/page-row:opacity-100 focus:opacity-100"
-        onClick={onAddChild}
-      />
-    </div>
+    <ListRow
+      href={href}
+      label={title}
+      indent={indent}
+      leftIcon={icon}
+      onAdd={onAddChild}
+      addAriaLabel="Add subpage"
+      addTooltip="Add subpage"
+      selected={isSelected}
+    />
   );
 });
 
@@ -156,21 +214,19 @@ const PageItem = memo(function PageItem({
   const open$ = useObservable(false);
   const isOpen = use$(open$);
   const children = useQuery(api.blocks.listChildren, isOpen && id ? { parentId: id } : 'skip');
+
+  // Stable icon element and handler to minimize child re-renders
+  const iconElement = useMemo(() => <PageIcon open$={open$} />, [open$]);
+  const handleAddChild = useCallback(() => {
+    void createNewPage({
+      scope,
+      teamId: scope === 'team' ? (teamId as Id<'teams'>) : undefined,
+      parentId: id,
+    });
+  }, [createNewPage, id, scope, teamId]);
   return (
     <>
-      <PageRow
-        href={`/${id}`}
-        title={title}
-        indent={indent}
-        icon={<PageIcon open$={open$} />}
-        onAddChild={async () => {
-          await createNewPage({
-            scope,
-            teamId: scope === 'team' ? (teamId as Id<'teams'>) : undefined,
-            parentId: id,
-          });
-        }}
-      />
+      <PageRow href={`/${id}`} title={title} indent={indent} icon={iconElement} onAddChild={handleAddChild} />
       <Show if={open$}>
         <div>
           {Array.isArray(children) && children.length === 0 && <EmptyStateRow indent={indent + 1} />}
@@ -204,58 +260,69 @@ const TeamItem = memo(function TeamItem({
   onAddTeam: (teamId: Id<'teams'>) => void;
   createNewPage: CreateNewPageHandler;
 }) {
-  const open$ = useObservable(true);
+  const open$ = useObservable(false);
+  // Stabilize frequently recreated props
+  const toggleOpen = useCallback(() => open$.set(!open$.get()), [open$]);
+  const handleAdd = useCallback(() => onAddTeam(teamId), [onAddTeam, teamId]);
+  const leftIcon = useMemo(
+    () => (
+      <span className="relative inline-flex items-center justify-center size-5 shrink-0">
+        <Users className="size-5 opacity-100 group-hover/list-row:opacity-0" />
+        <ExpandButton open$={open$} className="group-hover/list-row:opacity-100 opacity-0 absolute -inset-px" />
+      </span>
+    ),
+    [open$],
+  );
   return (
     <div className="flex flex-col gap-px">
-      {/* Team row: unified height and icon sizing */}
-      <div
-        // Team row hover container controls visibility of Add button
-        className="group/team-row h-7.5 flex items-center gap-2 text-muted-foreground justify-between px-2 rounded hover:bg-hover cursor-pointer flex-1"
-      >
-        <div
-          role="button"
-          onClick={() => open$.set(!open$.get())}
-          className="flex relative items-center gap-2 flex-1 min-w-0"
-        >
-          <ExpandButton open$={open$} className="group-hover/team-row:opacity-100 opacity-0 absolute z-[1]" />
-          <Users className="size-5 shrink-0 opacity-100 group-hover/team-row:opacity-0" />
-          <span className="font-semibold truncate text-start w-full">{teamName}</span>
-        </div>
-        <AddIconButton
-          ariaLabel={`Add page to ${teamName}`}
-          tooltipText="Add page"
-          // Only show Add on hover/focus of the row
-          className="size-7 opacity-0 group-hover/team-row:opacity-100 focus:opacity-100"
-          onClick={() => onAddTeam(teamId)}
-        />
-      </div>
+      {/* Team row uses shared ListRow */}
+      <ListRow
+        label={teamName}
+        indent={0}
+        leftIcon={leftIcon}
+        onLeftClick={toggleOpen}
+        onAdd={handleAdd}
+        addAriaLabel={`Add page to ${teamName}`}
+        addTooltip="Add page"
+        labelClassName="font-semibold"
+      />
       <Show if={open$}>
-        <div className="flex flex-col gap-px">
-          {/* Show empty state when team has no pages */}
-          {Array.isArray(pages) && pages.length === 0 && <EmptyStateRow indent={1} />}
-          {pages.map((p) => (
-            <PageItem
-              key={p._id}
-              id={p._id as Id<'blocks'>}
-              title={p.title}
-              indent={1}
-              scope="team"
-              teamId={teamId}
-              createNewPage={createNewPage}
-            />
-          ))}
-        </div>
+        {/* Show empty state when team has no pages */}
+        {Array.isArray(pages) && pages.length === 0 && <EmptyStateRow indent={1} />}
+        {pages.map((p) => (
+          <PageItem
+            key={p._id}
+            id={p._id as Id<'blocks'>}
+            title={p.title}
+            indent={1}
+            scope="team"
+            teamId={teamId}
+            createNewPage={createNewPage}
+          />
+        ))}
       </Show>
     </div>
   );
 });
 
-export const Pages = ({ orgId }: { orgId: string }) => {
+// Simplified Pages: hydrate from preloaded queries and render
+export const Pages = memo(function Pages({
+  orgId,
+  preloadedPrivatePages,
+  preloadedTeamSections,
+}: {
+  orgId: string;
+  preloadedPrivatePages: Preloaded<typeof api.blocks.listPrivatePages>;
+  preloadedTeamSections: Preloaded<typeof api.blocks.listTeamPagesForUser>;
+}) {
+  // Swap useQuery for usePreloadedQuery to use server-preloaded results
+  const privatePages = usePreloadedQuery(preloadedPrivatePages);
+  const teamSections = usePreloadedQuery(preloadedTeamSections) ?? [];
+
   const createPage = useMutation(api.blocks.createPage);
   const createTeam = useMutation(api.teams.createTeam);
   const router = useRouter();
 
-  // Centralized helper for creating pages to avoid repeating payload construction
   const createNewPage = useCallback(
     async ({
       scope,
@@ -283,13 +350,10 @@ export const Pages = ({ orgId }: { orgId: string }) => {
     [createPage, orgId, router],
   );
 
-  const privatePages = useQuery(api.blocks.listPrivatePages, orgId ? { workosOrgId: orgId } : 'skip');
-  const teamSections = useQuery(api.blocks.listTeamPagesForUser, orgId ? { workosOrgId: orgId } : 'skip');
-
-  const sortedPrivate = useMemo(
-    () => (privatePages ?? []).slice().sort((a, b) => (a.position ?? 0) - (b.position ?? 0)),
-    [privatePages],
-  );
+  const sortedPrivate = useMemo(() => {
+    const arr = (privatePages ?? []).slice();
+    return arr.sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
+  }, [privatePages]);
 
   const onAddPrivate = useCallback(async () => {
     await createNewPage({ scope: 'private' });
@@ -314,7 +378,7 @@ export const Pages = ({ orgId }: { orgId: string }) => {
         }}
         tooltip="Add team"
       >
-        <div className="flex flex-col gap-1">
+        <div className="flex flex-col gap-px">
           {teamSections?.map((section) => (
             <TeamItem
               key={section.team._id}
@@ -344,7 +408,7 @@ export const Pages = ({ orgId }: { orgId: string }) => {
       </Section>
     </div>
   );
-};
+});
 
 const Section = ({
   title,
@@ -360,24 +424,16 @@ const Section = ({
   const open$ = useObservable(true);
   return (
     <div className="flex flex-col gap-px mb-3 ">
-      <div
-        onClick={() => open$.set(!open$.get())}
-        // Section header hover container controls Add visibility
-        className="group/section-row text-xs font-semibold text-muted-foreground min-h-7.5 px-2 flex-1 flex items-center justify-between hover:bg-hover rounded"
-        role="button"
-      >
-        <span>{title}</span>
-        {/* Only show Add on hover/focus of the header */}
-        <AddIconButton
-          ariaLabel={tooltip}
-          tooltipText={tooltip}
-          onClick={onAdd}
-          className="size-7 opacity-0 group-hover/section-row:opacity-100 focus:opacity-100"
-        />
-      </div>
-      <Show if={open$}>
-        <div>{children}</div>
-      </Show>
+      <ListRow
+        label={title}
+        indent={0}
+        onLeftClick={() => open$.set(!open$.get())}
+        onAdd={onAdd}
+        addAriaLabel={tooltip}
+        addTooltip={tooltip}
+        labelClassName="text-xs font-semibold"
+      />
+      <Show if={open$}>{children}</Show>
     </div>
   );
 };

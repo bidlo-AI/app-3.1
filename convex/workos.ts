@@ -4,6 +4,10 @@ import { internalAction } from './_generated/server';
 import { v } from 'convex/values';
 import { WorkOS } from '@workos-inc/node';
 
+// --------------------------------
+// ACTIONS
+// --------------------------------
+// Verify WorkOS webhook signature and parse event payload
 export const verifyWebhook = internalAction({
   args: v.object({
     payload: v.string(),

@@ -4,19 +4,19 @@ import { api } from '@/convex/_generated/api';
 import { Preloaded } from 'convex/react';
 
 export const Sidebar = async ({
+  orgId,
+  accessToken,
   startingWidth,
   preloadedUser,
-  orgId,
 }: {
+  orgId: string;
+  accessToken: string;
   startingWidth?: number;
   preloadedUser: Preloaded<typeof api.users.getUser>;
-  orgId: string;
-}) => {
-  return (
-    <div className="hidden md:flex">
-      <SidebarWrapper startingWidth={startingWidth}>
-        <SidebarContent preloadedUser={preloadedUser} orgId={orgId} />
-      </SidebarWrapper>
-    </div>
-  );
-};
+}) => (
+  <div className="hidden md:flex">
+    <SidebarWrapper startingWidth={startingWidth}>
+      <SidebarContent preloadedUser={preloadedUser} orgId={orgId} accessToken={accessToken} />
+    </SidebarWrapper>
+  </div>
+);

@@ -2,6 +2,9 @@ import { mutation, query, type QueryCtx, type MutationCtx } from './_generated/s
 import { api } from './_generated/api';
 import { v } from 'convex/values';
 
+// --------------------------------
+// MUTATIONS
+// --------------------------------
 // Localized presence server implementation (adapted from @convex-dev/presence)
 
 export const heartbeat = mutation({
@@ -79,6 +82,9 @@ export const heartbeat = mutation({
   },
 });
 
+// --------------------------------
+// QUERIES
+// --------------------------------
 export const list = query({
   args: { roomToken: v.string(), limit: v.optional(v.number()) },
   handler: async (ctx, { roomToken, limit = 104 }) => {
@@ -135,6 +141,9 @@ export const list = query({
   },
 });
 
+// --------------------------------
+// MUTATIONS
+// --------------------------------
 export const disconnect = mutation({
   args: { sessionToken: v.string() },
   handler: async (ctx, { sessionToken }) => {

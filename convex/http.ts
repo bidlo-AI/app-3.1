@@ -4,6 +4,9 @@ import { internal, api } from './_generated/api';
 
 const http = httpRouter();
 
+// --------------------------------
+// ROUTES
+// --------------------------------
 http.route({
   path: '/workos-webhook',
   method: 'POST',

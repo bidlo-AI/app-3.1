@@ -11,11 +11,12 @@ function TooltipProvider({ delayDuration = 0, ...props }: React.ComponentProps<t
 
 function Tooltip({
   delayDuration,
+  disableHoverableContent,
   ...props
 }: React.ComponentProps<typeof TooltipPrimitive.Root> & { delayDuration?: number }) {
   return (
     <TooltipProvider delayDuration={delayDuration}>
-      <TooltipPrimitive.Root data-slot="tooltip" {...props} />
+      <TooltipPrimitive.Root data-slot="tooltip" disableHoverableContent={disableHoverableContent ?? true} {...props} />
     </TooltipProvider>
   );
 }

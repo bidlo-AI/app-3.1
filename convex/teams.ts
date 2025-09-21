@@ -1,27 +1,11 @@
-import { mutation, type MutationCtx, type QueryCtx, query } from './_generated/server';
+import { mutation, query } from './_generated/server';
 import { v } from 'convex/values';
-import type { Id } from './_generated/dataModel';
+import type { Doc, Id } from './_generated/dataModel';
+import { getCurrentUserDoc, getOrgByWorkOSId } from './helpers';
 
-async function getCurrentUserDoc(ctx: QueryCtx | MutationCtx) {
-  const identity = await ctx.auth.getUserIdentity();
-  const workosUserId = identity?.subject;
-  if (!workosUserId) throw new Error('User not authenticated');
-  const userDoc = await ctx.db
-    .query('users')
-    .withIndex('by_workos_id', (q) => q.eq('workos_id', workosUserId))
-    .first();
-  if (!userDoc) throw new Error('User not found');
-  return userDoc;
-}
-
-async function getOrgByWorkOSId(ctx: QueryCtx | MutationCtx, workosOrgId: string) {
-  const orgDoc = await ctx.db
-    .query('organizations')
-    .withIndex('by_workos_id', (q) => q.eq('workos_id', workosOrgId))
-    .first();
-  if (!orgDoc) throw new Error('Organization not found');
-  return orgDoc;
-}
+// --------------------------------
+// MUTATIONS
+// --------------------------------
 
 export const createTeam = mutation({
   args: { workosOrgId: v.string(), name: v.string() },
@@ -49,6 +33,9 @@ export const createTeam = mutation({
   },
 });
 
+// --------------------------------
+// QUERIES
+// --------------------------------
 export const listMyTeams = query({
   args: { workosOrgId: v.string() },
   handler: async (ctx, args) => {
@@ -58,11 +45,19 @@ export const listMyTeams = query({
       .query('team_members')
       .withIndex('by_user', (q) => q.eq('userId', userDoc._id))
       .collect();
-    const teams: Array<{ _id: Id<'teams'>; name: string }> = [];
-    for (const m of memberships) {
-      const t = await ctx.db.get(m.teamId);
-      if (t && t.organizationId === orgDoc._id) teams.push({ _id: t._id, name: t.name });
-    }
+
+    // Fetch team docs in parallel to reduce latency (getMany not available in this setup)
+    const teamIds = memberships.map((m) => m.teamId);
+    const teamDocs = await Promise.all(teamIds.map((id) => ctx.db.get(id)));
+
+    // Type guard to drop nulls from parallel fetches
+    const validTeamDocs = teamDocs.filter((t): t is Doc<'teams'> => t !== null);
+
+    const teams: Array<{ _id: Id<'teams'>; name: string }> = validTeamDocs
+      .filter((t) => t.organizationId === orgDoc._id)
+      .map((t) => ({ _id: t._id, name: t.name }));
+
+    // Keep UI stable by sorting alphabetically by team name
     teams.sort((a, b) => a.name.localeCompare(b.name));
     return teams;
   },
