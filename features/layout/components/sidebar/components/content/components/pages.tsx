@@ -318,6 +318,63 @@ const TeamItem = memo(function TeamItem({
   );
 });
 
+// Memoized list renderers to avoid re-renders during drag
+const TeamSectionList = memo(function TeamSectionList({
+  sections,
+  onAddTeam,
+  createNewPage,
+}: {
+  sections: { team: { _id: string; name: string }; pages: { _id: string; title: string }[] }[];
+  onAddTeam: (teamId: Id<'teams'>) => void;
+  createNewPage: CreateNewPageHandler;
+}) {
+  return (
+    <div className="flex flex-col gap-px">
+      {sections?.map((section) => (
+        <TeamItem
+          key={section.team._id}
+          teamId={section.team._id as Id<'teams'>}
+          teamName={section.team.name}
+          pages={section.pages as { _id: string; title: string }[]}
+          onAddTeam={onAddTeam}
+          createNewPage={createNewPage}
+        />
+      ))}
+    </div>
+  );
+});
+
+const PrivateSectionList = memo(function PrivateSectionList({
+  pages,
+  createNewPage,
+}: {
+  pages: { _id: string; title: string }[];
+  createNewPage: CreateNewPageHandler;
+}) {
+  return (
+    <div className="flex flex-col gap-px">
+      {pages?.map((p) => (
+        <PageItem
+          key={p._id}
+          id={p._id as Id<'blocks'>}
+          title={p.title}
+          indent={0}
+          scope="private"
+          createNewPage={createNewPage}
+        />
+      ))}
+    </div>
+  );
+});
+
+const SectionOverlayHeader = memo(function SectionOverlayHeader({ title }: { title: string }) {
+  return (
+    <div className="flex flex-col gap-px mb-3 ">
+      <ListRow label={title} indent={0} labelClassName="text-xs font-semibold" />
+    </div>
+  );
+});
+
 // Simplified Pages: hydrate from preloaded queries and render
 export const Pages = memo(function Pages({
   orgId,
@@ -414,15 +471,20 @@ export const Pages = memo(function Pages({
     [sectionOrder, setSectionsOrder],
   );
 
-  const handleDragStart = useCallback((event: DragStartEvent) => {
-    const id = event.active.id as SidebarSectionId;
-    setActiveSectionId(id);
-    const el = sectionRefs.current[id];
-    if (el) {
-      const rect = el.getBoundingClientRect();
-      setActiveDims({ width: rect.width, height: rect.height });
-    }
-  }, []);
+  const handleDragStart = useCallback(
+    (event: DragStartEvent) => {
+      const id = event.active.id as SidebarSectionId;
+      setActiveSectionId(id);
+      if (!activeDims) {
+        const el = sectionRefs.current[id];
+        if (el) {
+          const rect = el.getBoundingClientRect();
+          setActiveDims({ width: rect.width, height: rect.height });
+        }
+      }
+    },
+    [activeDims],
+  );
 
   return (
     <DndContext
@@ -454,33 +516,11 @@ export const Pages = memo(function Pages({
                     tooltip="Add team"
                     drag={drag}
                   >
-                    <div className="flex flex-col gap-px">
-                      {teamSections?.map((section) => (
-                        <TeamItem
-                          key={section.team._id}
-                          teamId={section.team._id as Id<'teams'>}
-                          teamName={section.team.name}
-                          pages={section.pages as { _id: string; title: string }[]}
-                          onAddTeam={onAddTeam}
-                          createNewPage={createNewPage}
-                        />
-                      ))}
-                    </div>
+                    <TeamSectionList sections={teamSections} onAddTeam={onAddTeam} createNewPage={createNewPage} />
                   </Section>
                 ) : (
                   <Section title="Private" onAdd={onAddPrivate} tooltip="Add private page" drag={drag}>
-                    <div className="flex flex-col gap-px">
-                      {sortedPrivate?.map((p) => (
-                        <PageItem
-                          key={p._id}
-                          id={p._id as Id<'blocks'>}
-                          title={p.title}
-                          indent={0}
-                          scope="private"
-                          createNewPage={createNewPage}
-                        />
-                      ))}
-                    </div>
+                    <PrivateSectionList pages={sortedPrivate} createNewPage={createNewPage} />
                   </Section>
                 )
               }
@@ -491,37 +531,7 @@ export const Pages = memo(function Pages({
       <DragOverlay adjustScale={false} dropAnimation={null}>
         {activeSectionId ? (
           <div style={{ width: activeDims?.width, height: activeDims?.height }}>
-            {activeSectionId === 'teams' ? (
-              <Section title="Teams" onAdd={() => {}} tooltip="Add team">
-                <div className="flex flex-col gap-px">
-                  {teamSections?.map((section) => (
-                    <TeamItem
-                      key={section.team._id}
-                      teamId={section.team._id as Id<'teams'>}
-                      teamName={section.team.name}
-                      pages={section.pages as { _id: string; title: string }[]}
-                      onAddTeam={() => {}}
-                      createNewPage={() => Promise.resolve()}
-                    />
-                  ))}
-                </div>
-              </Section>
-            ) : (
-              <Section title="Private" onAdd={() => {}} tooltip="Add private page">
-                <div className="flex flex-col gap-px">
-                  {sortedPrivate?.map((p) => (
-                    <PageItem
-                      key={p._id}
-                      id={p._id as Id<'blocks'>}
-                      title={p.title}
-                      indent={0}
-                      scope="private"
-                      createNewPage={() => Promise.resolve()}
-                    />
-                  ))}
-                </div>
-              </Section>
-            )}
+            <SectionOverlayHeader title={activeSectionId === 'teams' ? 'Teams' : 'Private'} />
           </div>
         ) : null}
       </DragOverlay>
