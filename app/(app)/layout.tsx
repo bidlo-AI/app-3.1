@@ -26,7 +26,7 @@ export default async function Layout({ children }: { children: React.ReactNode }
         <AgentProvider agent_panel_hidden={u.agent_panel_hidden} agent_panel_page={u.agent_panel_page}>
           <Sidebar startingWidth={u.sidebar_width} preloadedUser={preloaded} orgId={orgId} accessToken={accessToken} />
           <div className="grid grid-app-layout flex-1 overflow-hidden relative">
-            <Header preloadedUser={preloaded} orgId={orgId} />
+            <Header preloadedUser={preloaded} orgId={orgId} accessToken={accessToken} />
             {children}
             {/* <Peek /> */}
           </div>

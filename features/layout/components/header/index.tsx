@@ -10,14 +10,16 @@ import { api } from '@/convex/_generated/api';
 
 export const Header = ({
   preloadedUser,
+  accessToken,
   orgId,
 }: {
   preloadedUser: Preloaded<typeof api.users.getUser>;
+  accessToken: string;
   orgId: string;
 }) => (
   <>
     <div className="spacer-l" />
-    <SidebarActions preloadedUser={preloadedUser} orgId={orgId} />
+    <SidebarActions preloadedUser={preloadedUser} orgId={orgId} accessToken={accessToken} />
     <OrgSelect orgId={orgId} />
     <Suspense fallback={null}>
       <AgentActions />
