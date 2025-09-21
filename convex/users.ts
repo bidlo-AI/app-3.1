@@ -95,6 +95,25 @@ export const setSidebarSectionsOrder = mutation({
   },
 });
 
+// Persist the order of teams in the sidebar for the user
+export const setSidebarTeamsOrder = mutation({
+  args: { order: v.array(v.id('teams')) },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity?.subject) throw new Error('User not authenticated');
+    const workos_user_id = identity.subject;
+
+    const userDoc = await ctx.db
+      .query('users')
+      .filter((q) => q.eq(q.field('workos_id'), workos_user_id))
+      .first();
+    if (!userDoc) throw new Error('User not found');
+
+    await ctx.db.patch(userDoc._id, { sidebar_team_order: args.order } as Partial<typeof userDoc>);
+    return { success: true };
+  },
+});
+
 // --------------------------------
 // INTERNAL QUERIES
 // --------------------------------

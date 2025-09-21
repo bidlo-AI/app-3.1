@@ -5,7 +5,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { useObservable, Show, observer, use$ } from '@legendapp/state/react';
 import { Plus, Users, ChevronRight, File } from 'lucide-react';
 import { useRouter, usePathname } from 'next/navigation';
-import { useMemo, memo, useCallback, useState, useRef } from 'react';
+import { useMemo, memo, useCallback, useState, useRef, useEffect } from 'react';
 import { Id, Doc } from '@/convex/_generated/dataModel';
 import { Button } from '@/components/ui/button';
 import { Observable } from '@legendapp/state';
@@ -266,14 +266,19 @@ const TeamItem = memo(function TeamItem({
   pages,
   onAddTeam,
   createNewPage,
+  orgId,
 }: {
   teamId: Id<'teams'>;
   teamName: string;
   pages: { _id: string; title: string }[];
   onAddTeam: (teamId: Id<'teams'>) => void;
   createNewPage: CreateNewPageHandler;
+  orgId: string;
 }) {
   const open$ = useObservable(false);
+  const reorderPages = useMutation(api.blocks.reorderTopLevelPages);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
   // Stabilize frequently recreated props
   const toggleOpen = useCallback(() => open$.set(!open$.get()), [open$]);
   const handleAdd = useCallback(() => onAddTeam(teamId), [onAddTeam, teamId]);
@@ -286,6 +291,30 @@ const TeamItem = memo(function TeamItem({
     ),
     [open$],
   );
+  // Local order state for this team's top-level pages
+  const [order, setOrder] = useState<string[]>(() => pages?.map((p) => p._id) ?? []);
+  useEffect(() => {
+    const next = pages?.map((p) => p._id) ?? [];
+    setOrder(next);
+  }, [pages]);
+
+  // DnD for team pages
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 3 } }));
+  const onDragEnd = useCallback(
+    async (event: DragEndEvent) => {
+      const { active, over } = event;
+      if (!over || active.id === over.id) return;
+      const oldIndex = order.indexOf(String(active.id));
+      const newIndex = order.indexOf(String(over.id));
+      if (oldIndex === -1 || newIndex === -1) return;
+      const next = arrayMove(order, oldIndex, newIndex);
+      setOrder(next);
+      // Persist in background
+      void reorderPages({ workosOrgId: orgId, scope: 'team', teamId, ids: next as unknown as Id<'blocks'>[] });
+    },
+    [order, reorderPages, orgId, teamId],
+  );
+
   return (
     <div className="flex flex-col gap-px">
       {/* Team row uses shared ListRow */}
@@ -301,18 +330,65 @@ const TeamItem = memo(function TeamItem({
       />
       <Show if={open$}>
         {/* Show empty state when team has no pages */}
-        {Array.isArray(pages) && pages.length === 0 && <EmptyStateRow indent={1} />}
-        {pages.map((p) => (
-          <PageItem
-            key={p._id}
-            id={p._id as Id<'blocks'>}
-            title={p.title}
-            indent={1}
-            scope="team"
-            teamId={teamId}
-            createNewPage={createNewPage}
-          />
-        ))}
+        {Array.isArray(order) && order.length === 0 && <EmptyStateRow indent={1} />}
+        {order.length > 0 &&
+          (mounted ? (
+            <DndContext
+              sensors={sensors}
+              onDragEnd={onDragEnd}
+              modifiers={[restrictToVerticalAxis, restrictToParentElement]}
+            >
+              <SortableContext items={order} strategy={verticalListSortingStrategy}>
+                <div className="flex flex-col gap-px">
+                  {order.map((id) => {
+                    const p = pages.find((x) => x._id === id);
+                    if (!p) return null;
+                    return (
+                      <SortableItem key={id} id={id}>
+                        {(drag) => (
+                          <div
+                            ref={drag.setNodeRef}
+                            style={drag.style}
+                            {...(drag.attributes as object)}
+                            {...(drag.listeners as object)}
+                            className={cn(drag.dragging && 'opacity-50')}
+                          >
+                            <PageItem
+                              id={p._id as Id<'blocks'>}
+                              title={p.title}
+                              indent={1}
+                              scope="team"
+                              teamId={teamId}
+                              createNewPage={createNewPage}
+                            />
+                          </div>
+                        )}
+                      </SortableItem>
+                    );
+                  })}
+                </div>
+              </SortableContext>
+            </DndContext>
+          ) : (
+            <div className="flex flex-col gap-px">
+              {order.map((id) => {
+                const p = pages.find((x) => x._id === id);
+                if (!p) return null;
+                return (
+                  <div key={id}>
+                    <PageItem
+                      id={p._id as Id<'blocks'>}
+                      title={p.title}
+                      indent={1}
+                      scope="team"
+                      teamId={teamId}
+                      createNewPage={createNewPage}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+          ))}
       </Show>
     </div>
   );
@@ -323,23 +399,91 @@ const TeamSectionList = memo(function TeamSectionList({
   sections,
   onAddTeam,
   createNewPage,
+  orgId,
 }: {
   sections: { team: { _id: string; name: string }; pages: { _id: string; title: string }[] }[];
   onAddTeam: (teamId: Id<'teams'>) => void;
   createNewPage: CreateNewPageHandler;
+  orgId: string;
 }) {
-  return (
+  const setTeamsOrder = useMutation(api.users.setSidebarTeamsOrder);
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 3 } }));
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
+  // Local order state for teams
+  const [order, setOrder] = useState<string[]>(() => sections?.map((s) => s.team._id) ?? []);
+  const byId = useMemo(() => new Map(sections.map((s) => [s.team._id, s])), [sections]);
+  useEffect(() => {
+    setOrder(sections?.map((s) => s.team._id) ?? []);
+  }, [sections]);
+
+  const onDragEnd = useCallback(
+    async (event: DragEndEvent) => {
+      const { active, over } = event;
+      if (!over || active.id === over.id) return;
+      const oldIndex = order.indexOf(String(active.id));
+      const newIndex = order.indexOf(String(over.id));
+      if (oldIndex === -1 || newIndex === -1) return;
+      const next = arrayMove(order, oldIndex, newIndex);
+      setOrder(next);
+      // Persist in background
+      void setTeamsOrder({ order: next as unknown as Id<'teams'>[] });
+    },
+    [order, setTeamsOrder],
+  );
+
+  return mounted ? (
+    <DndContext sensors={sensors} onDragEnd={onDragEnd} modifiers={[restrictToVerticalAxis, restrictToParentElement]}>
+      <SortableContext items={order} strategy={verticalListSortingStrategy}>
+        <div className="flex flex-col gap-px">
+          {order.map((teamId) => {
+            const section = byId.get(teamId);
+            if (!section) return null;
+            return (
+              <SortableItem key={teamId} id={teamId}>
+                {(drag) => (
+                  <div
+                    ref={drag.setNodeRef}
+                    style={drag.style}
+                    {...(drag.attributes as object)}
+                    {...(drag.listeners as object)}
+                    className={cn(drag.dragging && 'opacity-50')}
+                  >
+                    <TeamItem
+                      teamId={section.team._id as Id<'teams'>}
+                      teamName={section.team.name}
+                      pages={section.pages as { _id: string; title: string }[]}
+                      onAddTeam={onAddTeam}
+                      createNewPage={createNewPage}
+                      orgId={orgId}
+                    />
+                  </div>
+                )}
+              </SortableItem>
+            );
+          })}
+        </div>
+      </SortableContext>
+    </DndContext>
+  ) : (
     <div className="flex flex-col gap-px">
-      {sections?.map((section) => (
-        <TeamItem
-          key={section.team._id}
-          teamId={section.team._id as Id<'teams'>}
-          teamName={section.team.name}
-          pages={section.pages as { _id: string; title: string }[]}
-          onAddTeam={onAddTeam}
-          createNewPage={createNewPage}
-        />
-      ))}
+      {order.map((teamId) => {
+        const section = byId.get(teamId);
+        if (!section) return null;
+        return (
+          <div key={teamId}>
+            <TeamItem
+              teamId={section.team._id as Id<'teams'>}
+              teamName={section.team.name}
+              pages={section.pages as { _id: string; title: string }[]}
+              onAddTeam={onAddTeam}
+              createNewPage={createNewPage}
+              orgId={orgId}
+            />
+          </div>
+        );
+      })}
     </div>
   );
 });
@@ -347,22 +491,86 @@ const TeamSectionList = memo(function TeamSectionList({
 const PrivateSectionList = memo(function PrivateSectionList({
   pages,
   createNewPage,
+  orgId,
 }: {
   pages: { _id: string; title: string }[];
   createNewPage: CreateNewPageHandler;
+  orgId: string;
 }) {
-  return (
+  const reorderPages = useMutation(api.blocks.reorderTopLevelPages);
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 3 } }));
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  const [order, setOrder] = useState<string[]>(() => pages?.map((p) => p._id) ?? []);
+  const byId = useMemo(() => new Map(pages.map((p) => [p._id, p])), [pages]);
+  useEffect(() => {
+    setOrder(pages?.map((p) => p._id) ?? []);
+  }, [pages]);
+
+  const onDragEnd = useCallback(
+    async (event: DragEndEvent) => {
+      const { active, over } = event;
+      if (!over || active.id === over.id) return;
+      const oldIndex = order.indexOf(String(active.id));
+      const newIndex = order.indexOf(String(over.id));
+      if (oldIndex === -1 || newIndex === -1) return;
+      const next = arrayMove(order, oldIndex, newIndex);
+      setOrder(next);
+      // Persist in background
+      void reorderPages({ workosOrgId: orgId, scope: 'private', ids: next as unknown as Id<'blocks'>[] });
+    },
+    [order, reorderPages, orgId],
+  );
+
+  return mounted ? (
+    <DndContext sensors={sensors} onDragEnd={onDragEnd} modifiers={[restrictToVerticalAxis, restrictToParentElement]}>
+      <SortableContext items={order} strategy={verticalListSortingStrategy}>
+        <div className="flex flex-col gap-px">
+          {order.map((id) => {
+            const p = byId.get(id);
+            if (!p) return null;
+            return (
+              <SortableItem key={id} id={id}>
+                {(drag) => (
+                  <div
+                    ref={drag.setNodeRef}
+                    style={drag.style}
+                    {...(drag.attributes as object)}
+                    {...(drag.listeners as object)}
+                    className={cn(drag.dragging && 'opacity-50')}
+                  >
+                    <PageItem
+                      id={p._id as Id<'blocks'>}
+                      title={p.title}
+                      indent={0}
+                      scope="private"
+                      createNewPage={createNewPage}
+                    />
+                  </div>
+                )}
+              </SortableItem>
+            );
+          })}
+        </div>
+      </SortableContext>
+    </DndContext>
+  ) : (
     <div className="flex flex-col gap-px">
-      {pages?.map((p) => (
-        <PageItem
-          key={p._id}
-          id={p._id as Id<'blocks'>}
-          title={p.title}
-          indent={0}
-          scope="private"
-          createNewPage={createNewPage}
-        />
-      ))}
+      {order.map((id) => {
+        const p = byId.get(id);
+        if (!p) return null;
+        return (
+          <div key={id}>
+            <PageItem
+              id={p._id as Id<'blocks'>}
+              title={p.title}
+              indent={0}
+              scope="private"
+              createNewPage={createNewPage}
+            />
+          </div>
+        );
+      })}
     </div>
   );
 });
@@ -516,11 +724,16 @@ export const Pages = memo(function Pages({
                     tooltip="Add team"
                     drag={drag}
                   >
-                    <TeamSectionList sections={teamSections} onAddTeam={onAddTeam} createNewPage={createNewPage} />
+                    <TeamSectionList
+                      sections={teamSections}
+                      onAddTeam={onAddTeam}
+                      createNewPage={createNewPage}
+                      orgId={orgId}
+                    />
                   </Section>
                 ) : (
                   <Section title="Private" onAdd={onAddPrivate} tooltip="Add private page" drag={drag}>
-                    <PrivateSectionList pages={sortedPrivate} createNewPage={createNewPage} />
+                    <PrivateSectionList pages={sortedPrivate} createNewPage={createNewPage} orgId={orgId} />
                   </Section>
                 )
               }
@@ -561,13 +774,15 @@ const Section = ({
   drag?: DragHandleProps;
 }) => {
   const open$ = useObservable(true);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
   return (
     <div
       ref={drag?.setNodeRef}
       style={drag?.style}
       className={cn('flex flex-col gap-px mb-3 ', drag?.dragging && 'opacity-0')}
     >
-      <div {...(drag?.attributes ?? {})} {...(drag?.listeners as object)}>
+      <div {...(mounted ? (drag?.attributes ?? {}) : {})} {...(mounted ? ((drag?.listeners as object) ?? {}) : {})}>
         <ListRow
           label={title}
           indent={0}
@@ -602,4 +817,11 @@ const SortableSection = ({
     [setNodeRef, onNodeRef],
   );
   return <>{children({ attributes, listeners, setNodeRef: combinedRef, style, dragging: isDragging })}</>;
+};
+
+// Generic sortable item wrapper for list rows (teams or pages)
+const SortableItem = ({ id, children }: { id: string; children: (drag: DragHandleProps) => React.ReactNode }) => {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+  const style = useMemo(() => ({ transform: CSS.Transform.toString(transform), transition }), [transform, transition]);
+  return <>{children({ attributes, listeners, setNodeRef, style, dragging: isDragging })}</>;
 };

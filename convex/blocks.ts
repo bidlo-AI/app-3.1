@@ -103,7 +103,7 @@ export const listTeamPagesForUser = query({
       ),
     );
 
-    const result: Array<{
+    let result: Array<{
       team: { _id: Id<'teams'>; name: string };
       pages: Array<{ _id: Id<'blocks'>; title: string; position?: number }>;
     }> = teamDocs.map((team, idx) => {
@@ -117,8 +117,21 @@ export const listTeamPagesForUser = query({
         pages: pages.map((p) => ({ _id: p._id, title: p.title ?? 'Untitled', position: p.position })),
       };
     });
-    // Sort teams by name for consistent UI
-    result.sort((a, b) => a.team.name.localeCompare(b.team.name));
+    // Sort teams by user's preferred order if available; otherwise by name
+    const preferred = (userDoc.sidebar_team_order as Id<'teams'>[] | undefined) ?? [];
+    if (preferred.length > 0) {
+      const index = new Map(preferred.map((id, i) => [id, i] as const));
+      result = result.slice().sort((a, b) => {
+        const ai = index.get(a.team._id);
+        const bi = index.get(b.team._id);
+        if (ai !== undefined && bi !== undefined) return ai - bi;
+        if (ai !== undefined) return -1;
+        if (bi !== undefined) return 1;
+        return a.team.name.localeCompare(b.team.name);
+      });
+    } else {
+      result.sort((a, b) => a.team.name.localeCompare(b.team.name));
+    }
     return result;
   },
 });
@@ -237,5 +250,52 @@ export const createPage = mutation({
       await ctx.db.patch(blockId, { rootId: blockId });
     }
     return { blockId } as { blockId: Id<'blocks'> };
+  },
+});
+
+// Reorder top-level pages (private or team) by assigning new position values
+export const reorderTopLevelPages = mutation({
+  args: {
+    workosOrgId: v.string(),
+    scope: v.union(v.literal('private'), v.literal('team')),
+    ids: v.array(v.id('blocks')),
+    teamId: v.optional(v.id('teams')),
+  },
+  handler: async (ctx, args) => {
+    const userDoc = await getCurrentUserDoc(ctx);
+    const orgDoc = await getOrgByWorkOSId(ctx, args.workosOrgId);
+
+    if (args.scope === 'team') {
+      if (!args.teamId) throw new Error('teamId is required for team scope');
+      const team = await ctx.db.get(args.teamId);
+      if (!team || team.organizationId !== orgDoc._id) throw new Error('Team not found');
+      const membership = await ctx.db
+        .query('team_members')
+        .withIndex('by_team_user', (q) => q.eq('teamId', args.teamId!).eq('userId', userDoc._id))
+        .first();
+      if (!membership) throw new Error('Forbidden');
+    }
+
+    // Validate that all blocks belong to the correct scope and are top-level pages in this org
+    const blocks = await Promise.all(args.ids.map((id) => ctx.db.get(id)));
+    for (const b of blocks) {
+      if (!b) throw new Error('Block not found');
+      if (b.organizationId !== orgDoc._id) throw new Error('Block not in selected organization');
+      if (b.type !== 'page' || b.depth !== 0) throw new Error('Only top-level pages can be reordered');
+      if (args.scope === 'private') {
+        if (b.scope !== 'private' || b.ownerId !== userDoc._id) throw new Error('Forbidden');
+      } else {
+        if (b.scope !== 'team' || b.teamId !== args.teamId) throw new Error('Forbidden');
+      }
+    }
+
+    // Apply new positions using a dense increasing sequence for stable ordering
+    const base = Date.now();
+    await Promise.all(
+      args.ids.map((id, idx) =>
+        ctx.db.patch(id, { position: base + idx, updatedAt: base + idx, updatedBy: userDoc._id }),
+      ),
+    );
+    return { success: true } as const;
   },
 });

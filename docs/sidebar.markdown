@@ -11,6 +11,11 @@ The Sidebar is a responsive navigation panel with two desktop modes (pinned and 
   - stored in `localStorage` under `sidebarWidthPx` for initial paint,
   - persisted to Convex on drag end/reset via `api.users.setLayoutWidth` with `target: 'sidebar_width'`.
 
+- Section order:
+  - Top-level section order (currently `['teams','private']`) is persisted per user on the `users.sidebar_sections_order` field.
+  - Order is applied on load (via `preloadedUser: api.users.getUser`) and defaults to `['teams','private']` if not set.
+  - On drag end, order is saved via `api.users.setSidebarSectionsOrder({ order })`.
+
 ### Provider and Hook
 
 - Wrap your layout with `SidebarProvider`, passing the initial `sidebar_hidden` boolean from the server.
@@ -123,3 +128,33 @@ export const AppProviders = ({ children }: { children: React.ReactNode }) => (
 - Uses `@legendapp/state` for ergonomic observable state and granular subscriptions.
 - Uses shadcn/ui primitives (`Sheet`, `Button`) for the UI, and `lucide-react` icons.
 - Server mutations involved: `api.users.toggleSidebar`, `api.users.setLayoutWidth`.
+
+### Drag & Drop
+
+- What is draggable:
+  - The two top-level sections in the Pages area: `Teams` and `Private`.
+  - Goal is to support more drag-to-sort (teams/pages) later; current implementation focuses on section order.
+
+- Library & setup:
+  - Uses `@dnd-kit/core`, `@dnd-kit/sortable`, and `@dnd-kit/modifiers`.
+  - Activation uses a pointer sensor with `distance: 3` so a short click still toggles the section open/closed.
+  - No explicit drag handle; dragging begins when the header is dragged more than 3px.
+
+- Constraints:
+  - Movement is locked to the vertical axis and restricted to the section list container.
+  - This prevents horizontal drift and dragging beyond the sidebar area.
+
+- Overlay & visuals:
+  - The original section is hidden while dragging to avoid duplicate visuals.
+  - A lightweight `DragOverlay` renders only a fixed-size header snapshot (no list body) to avoid expensive re-renders.
+  - The overlay size is measured once at drag start and cached to prevent layout thrash.
+
+- Performance considerations:
+  - Lists inside sections are memoized (`TeamSectionList`, `PrivateSectionList`) to skip re-renders during drag.
+  - Section order is persisted only on drag end via `api.users.setSidebarSectionsOrder`.
+  - Default order fallback: `['teams','private']` when no user preference exists.
+
+- Data model & API:
+  - Field: `users.sidebar_sections_order?: ('teams' | 'private')[]`.
+  - Mutation: `api.users.setSidebarSectionsOrder({ order })`.
+  - Loaded with `api.users.getUser` and passed to the sidebar `Pages` component as `preloadedUser`.
