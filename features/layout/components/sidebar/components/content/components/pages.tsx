@@ -5,13 +5,16 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { useObservable, Show, observer, use$ } from '@legendapp/state/react';
 import { Plus, Users, ChevronRight, File } from 'lucide-react';
 import { useRouter, usePathname } from 'next/navigation';
-import { useMemo, memo, useCallback } from 'react';
-import { Id } from '@/convex/_generated/dataModel';
+import { useMemo, memo, useCallback, useState } from 'react';
+import { Id, Doc } from '@/convex/_generated/dataModel';
 import { Button } from '@/components/ui/button';
 import { Observable } from '@legendapp/state';
 import { api } from '@/convex/_generated/api';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
+import { DndContext, PointerSensor, useSensor, useSensors, DragEndEvent, DraggableAttributes } from '@dnd-kit/core';
+import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 // Reusable add button with tooltip to reduce duplication across sections and items
 const AddIconButton = ({
@@ -310,18 +313,32 @@ export const Pages = memo(function Pages({
   orgId,
   preloadedPrivatePages,
   preloadedTeamSections,
+  preloadedUser,
 }: {
   orgId: string;
   preloadedPrivatePages: Preloaded<typeof api.blocks.listPrivatePages>;
   preloadedTeamSections: Preloaded<typeof api.blocks.listTeamPagesForUser>;
+  preloadedUser: Preloaded<typeof api.users.getUser>;
 }) {
   // Swap useQuery for usePreloadedQuery to use server-preloaded results
   const privatePages = usePreloadedQuery(preloadedPrivatePages);
   const teamSections = usePreloadedQuery(preloadedTeamSections) ?? [];
+  const user = usePreloadedQuery(preloadedUser) as Doc<'users'> | null;
 
   const createPage = useMutation(api.blocks.createPage);
   const createTeam = useMutation(api.teams.createTeam);
+  const setSectionsOrder = useMutation(api.users.setSidebarSectionsOrder);
   const router = useRouter();
+
+  // Local section order state, defaulting to persisted user preference or fallback
+  type SidebarSectionId = 'teams' | 'private';
+  const [sectionOrder, setSectionOrder] = useState<Array<SidebarSectionId>>(() => {
+    const persisted = user?.sidebar_sections_order as SidebarSectionId[] | undefined;
+    return Array.isArray(persisted) && persisted.length > 0 ? persisted : ['teams', 'private'];
+  });
+
+  // DnD sensors: activate drag if pointer moved more than 3px
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 3 } }));
 
   const createNewPage = useCallback(
     async ({
@@ -366,74 +383,126 @@ export const Pages = memo(function Pages({
     [createNewPage],
   );
 
-  return (
-    <div className="flex flex-col gap-1">
-      <Section
-        title="Teams"
-        onAdd={async () => {
-          if (!orgId) return;
-          const name = prompt('Team name');
-          if (!name) return;
-          await createTeam({ workosOrgId: orgId, name });
-        }}
-        tooltip="Add team"
-      >
-        <div className="flex flex-col gap-px">
-          {teamSections?.map((section) => (
-            <TeamItem
-              key={section.team._id}
-              teamId={section.team._id as Id<'teams'>}
-              teamName={section.team.name}
-              pages={section.pages as { _id: string; title: string }[]}
-              onAddTeam={onAddTeam}
-              createNewPage={createNewPage}
-            />
-          ))}
-        </div>
-      </Section>
+  // Handle reordering sections
+  const handleDragEnd = useCallback(
+    async (event: DragEndEvent) => {
+      const { active, over } = event;
+      if (!over || active.id === over.id) return;
+      const oldIndex = sectionOrder.indexOf(active.id as SidebarSectionId);
+      const newIndex = sectionOrder.indexOf(over.id as SidebarSectionId);
+      if (oldIndex === -1 || newIndex === -1) return;
+      const next = arrayMove(sectionOrder, oldIndex, newIndex);
+      setSectionOrder(next);
+      // Persist in background
+      void setSectionsOrder({ order: next });
+    },
+    [sectionOrder, setSectionsOrder],
+  );
 
-      <Section title="Private" onAdd={onAddPrivate} tooltip="Add private page">
-        <div className="flex flex-col gap-px">
-          {sortedPrivate?.map((p) => (
-            <PageItem
-              key={p._id}
-              id={p._id as Id<'blocks'>}
-              title={p.title}
-              indent={0}
-              scope="private"
-              createNewPage={createNewPage}
-            />
+  return (
+    <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
+      <SortableContext items={sectionOrder} strategy={verticalListSortingStrategy}>
+        <div className="flex flex-col gap-1">
+          {sectionOrder.map((sectionId) => (
+            <SortableSection key={sectionId} id={sectionId}>
+              {(drag) =>
+                sectionId === 'teams' ? (
+                  <Section
+                    title="Teams"
+                    onAdd={async () => {
+                      if (!orgId) return;
+                      const name = prompt('Team name');
+                      if (!name) return;
+                      await createTeam({ workosOrgId: orgId, name });
+                    }}
+                    tooltip="Add team"
+                    drag={drag}
+                  >
+                    <div className="flex flex-col gap-px">
+                      {teamSections?.map((section) => (
+                        <TeamItem
+                          key={section.team._id}
+                          teamId={section.team._id as Id<'teams'>}
+                          teamName={section.team.name}
+                          pages={section.pages as { _id: string; title: string }[]}
+                          onAddTeam={onAddTeam}
+                          createNewPage={createNewPage}
+                        />
+                      ))}
+                    </div>
+                  </Section>
+                ) : (
+                  <Section title="Private" onAdd={onAddPrivate} tooltip="Add private page" drag={drag}>
+                    <div className="flex flex-col gap-px">
+                      {sortedPrivate?.map((p) => (
+                        <PageItem
+                          key={p._id}
+                          id={p._id as Id<'blocks'>}
+                          title={p.title}
+                          indent={0}
+                          scope="private"
+                          createNewPage={createNewPage}
+                        />
+                      ))}
+                    </div>
+                  </Section>
+                )
+              }
+            </SortableSection>
           ))}
         </div>
-      </Section>
-    </div>
+      </SortableContext>
+    </DndContext>
   );
 });
+
+type DragHandleProps = {
+  setNodeRef: (node: HTMLElement | null) => void;
+  attributes: DraggableAttributes;
+  listeners?: Record<string, unknown>;
+  style?: React.CSSProperties;
+};
 
 const Section = ({
   title,
   onAdd,
   tooltip,
   children,
+  drag,
 }: {
   title: string;
   onAdd: () => void;
   tooltip: string;
   children: React.ReactNode;
+  drag?: DragHandleProps;
 }) => {
   const open$ = useObservable(true);
   return (
-    <div className="flex flex-col gap-px mb-3 ">
-      <ListRow
-        label={title}
-        indent={0}
-        onLeftClick={() => open$.set(!open$.get())}
-        onAdd={onAdd}
-        addAriaLabel={tooltip}
-        addTooltip={tooltip}
-        labelClassName="text-xs font-semibold"
-      />
+    <div ref={drag?.setNodeRef} style={drag?.style} className="flex flex-col gap-px mb-3 ">
+      <div {...(drag?.attributes ?? {})} {...(drag?.listeners as object)}>
+        <ListRow
+          label={title}
+          indent={0}
+          onLeftClick={() => open$.set(!open$.get())}
+          onAdd={onAdd}
+          addAriaLabel={tooltip}
+          addTooltip={tooltip}
+          labelClassName="text-xs font-semibold"
+        />
+      </div>
       <Show if={open$}>{children}</Show>
     </div>
   );
+};
+
+const SortableSection = ({
+  id,
+  children,
+}: {
+  id: 'teams' | 'private';
+  children: (drag: DragHandleProps) => React.ReactNode;
+}) => {
+  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id });
+  const style = useMemo(() => ({ transform: CSS.Transform.toString(transform), transition }), [transform, transition]);
+  return <>{children({ attributes, listeners, setNodeRef, style })}</>;
 };

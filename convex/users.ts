@@ -74,6 +74,27 @@ export const setAgentPanelPage = mutation({
   },
 });
 
+// Persist the order of top-level sidebar sections for the user
+export const setSidebarSectionsOrder = mutation({
+  args: {
+    order: v.array(v.union(v.literal('teams'), v.literal('private'))),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity?.subject) throw new Error('User not authenticated');
+    const workos_user_id = identity.subject;
+
+    const userDoc = await ctx.db
+      .query('users')
+      .filter((q) => q.eq(q.field('workos_id'), workos_user_id))
+      .first();
+    if (!userDoc) throw new Error('User not found');
+
+    await ctx.db.patch(userDoc._id, { sidebar_sections_order: args.order } as Partial<typeof userDoc>);
+    return { success: true };
+  },
+});
+
 // --------------------------------
 // INTERNAL QUERIES
 // --------------------------------

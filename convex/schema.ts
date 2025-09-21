@@ -23,6 +23,8 @@ export default defineSchema({
     ),
     sidebar_hidden: v.optional(v.boolean()),
     sidebar_width: v.optional(v.number()),
+    // Order of high-level sidebar sections for this user
+    sidebar_sections_order: v.optional(v.array(v.union(v.literal('teams'), v.literal('private')))),
     agent_panel_hidden: v.optional(v.boolean()),
     agent_panel_width: v.optional(v.number()),
     agent_panel_page: v.optional(

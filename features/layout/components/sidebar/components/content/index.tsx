@@ -32,7 +32,7 @@ export const SidebarContent = ({
     <div className="flex flex-col px-2 mb-5 gap-5">
       <div className="flex flex-col gap-1">
         <Suspense fallback={<LoadingContent />}>
-          <Content orgId={orgId} accessToken={accessToken} />
+          <Content orgId={orgId} accessToken={accessToken} preloadedUser={preloadedUser} />
         </Suspense>
       </div>
       <div className="flex flex-col gap-1">
@@ -45,13 +45,26 @@ export const SidebarContent = ({
 
 // Server component that preloads sidebar queries for hydration.
 // This reduces client waterfalls and keeps live reactivity via usePreloadedQuery.
-async function Content({ orgId, accessToken }: { orgId: string; accessToken: string }) {
+async function Content({
+  orgId,
+  accessToken,
+  preloadedUser,
+}: {
+  orgId: string;
+  accessToken: string;
+  preloadedUser: Preloaded<typeof api.users.getUser>;
+}) {
   const [preloadedPrivatePages, preloadedTeamSections] = await Promise.all([
     preloadQuery(api.blocks.listPrivatePages, { workosOrgId: orgId }, { token: accessToken }),
     preloadQuery(api.blocks.listTeamPagesForUser, { workosOrgId: orgId }, { token: accessToken }),
   ]);
 
   return (
-    <Pages orgId={orgId} preloadedPrivatePages={preloadedPrivatePages} preloadedTeamSections={preloadedTeamSections} />
+    <Pages
+      orgId={orgId}
+      preloadedPrivatePages={preloadedPrivatePages}
+      preloadedTeamSections={preloadedTeamSections}
+      preloadedUser={preloadedUser}
+    />
   );
 }
