@@ -186,18 +186,21 @@ const PageRow = memo(function PageRow({
   indent,
   icon,
   onAddChild,
+  disableLink,
 }: {
   href: string;
   title: string;
   indent: number;
   icon: React.ReactNode;
   onAddChild: () => void;
+  disableLink?: boolean;
 }) {
   const pathname = usePathname();
   const isSelected = pathname === href;
+  const linkHref = disableLink ? undefined : href;
   return (
     <ListRow
-      href={href}
+      href={linkHref}
       label={title}
       indent={indent}
       leftIcon={icon}
@@ -216,6 +219,7 @@ const PageItem = memo(function PageItem({
   scope,
   teamId,
   createNewPage,
+  disableLink,
 }: {
   id: Id<'blocks'>;
   title: string;
@@ -223,6 +227,7 @@ const PageItem = memo(function PageItem({
   scope: 'private' | 'team';
   teamId?: Id<'teams'>;
   createNewPage: CreateNewPageHandler;
+  disableLink?: boolean;
 }) {
   const open$ = useObservable(false);
   const isOpen = use$(open$);
@@ -239,7 +244,14 @@ const PageItem = memo(function PageItem({
   }, [createNewPage, id, scope, teamId]);
   return (
     <>
-      <PageRow href={`/${id}`} title={title} indent={indent} icon={iconElement} onAddChild={handleAddChild} />
+      <PageRow
+        href={`/${id}`}
+        title={title}
+        indent={indent}
+        icon={iconElement}
+        onAddChild={handleAddChild}
+        disableLink={disableLink}
+      />
       <Show if={open$}>
         <div>
           {Array.isArray(children) && children.length === 0 && <EmptyStateRow indent={indent + 1} />}
@@ -360,6 +372,7 @@ const TeamItem = memo(function TeamItem({
                               scope="team"
                               teamId={teamId}
                               createNewPage={createNewPage}
+                              disableLink={true}
                             />
                           </div>
                         )}
@@ -545,6 +558,7 @@ const PrivateSectionList = memo(function PrivateSectionList({
                       indent={0}
                       scope="private"
                       createNewPage={createNewPage}
+                      disableLink={true}
                     />
                   </div>
                 )}
