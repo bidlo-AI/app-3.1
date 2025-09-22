@@ -372,7 +372,7 @@ const TeamItem = memo(function TeamItem({
                               scope="team"
                               teamId={teamId}
                               createNewPage={createNewPage}
-                              disableLink={true}
+                              disableLink={drag.dragging}
                             />
                           </div>
                         )}
@@ -558,7 +558,7 @@ const PrivateSectionList = memo(function PrivateSectionList({
                       indent={0}
                       scope="private"
                       createNewPage={createNewPage}
-                      disableLink={true}
+                      disableLink={drag.dragging}
                     />
                   </div>
                 )}
@@ -637,7 +637,7 @@ export const Pages = memo(function Pages({
       scope,
       teamId,
       parentId,
-      title = 'Untitled',
+      title = 'New page',
     }: {
       scope: 'private' | 'team';
       teamId?: Id<'teams'>;

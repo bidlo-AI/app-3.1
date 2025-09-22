@@ -16,6 +16,14 @@ The Sidebar is a responsive navigation panel with two desktop modes (pinned and 
   - Order is applied on load (via `preloadedUser: api.users.getUser`) and defaults to `['teams','private']` if not set.
   - On drag end, order is saved via `api.users.setSidebarSectionsOrder({ order })`.
 
+- Team order:
+  - The order of Teams inside the Teams section is persisted per user on `users.sidebar_team_order`.
+  - On drag end, order is saved via `api.users.setSidebarTeamsOrder({ order })`.
+
+- Page order:
+  - Order of top-level pages in Private and within each Team is persisted on `blocks.position`.
+  - On drag end, order is saved via `api.blocks.reorderTopLevelPages({ workosOrgId, scope, ids, teamId? })`.
+
 ### Provider and Hook
 
 - Wrap your layout with `SidebarProvider`, passing the initial `sidebar_hidden` boolean from the server.
@@ -132,29 +140,42 @@ export const AppProviders = ({ children }: { children: React.ReactNode }) => (
 ### Drag & Drop
 
 - What is draggable:
-  - The two top-level sections in the Pages area: `Teams` and `Private`.
-  - Goal is to support more drag-to-sort (teams/pages) later; current implementation focuses on section order.
+  - The two top-level sections in the Pages area: `Teams` and `Private` (reorder sections).
+  - Teams within the Teams section (reorder teams).
+  - Top-level pages under `Private` and top-level pages under each Team (reorder pages).
 
 - Library & setup:
   - Uses `@dnd-kit/core`, `@dnd-kit/sortable`, and `@dnd-kit/modifiers`.
   - Activation uses a pointer sensor with `distance: 3` so a short click still toggles the section open/closed.
   - No explicit drag handle; dragging begins when the header is dragged more than 3px.
+  - Drag attributes/listeners are attached on mount to avoid SSR hydration mismatches.
 
 - Constraints:
   - Movement is locked to the vertical axis and restricted to the section list container.
   - This prevents horizontal drift and dragging beyond the sidebar area.
+  - Teams and pages are also constrained vertically within their respective lists.
 
 - Overlay & visuals:
   - The original section is hidden while dragging to avoid duplicate visuals.
   - A lightweight `DragOverlay` renders only a fixed-size header snapshot (no list body) to avoid expensive re-renders.
   - The overlay size is measured once at drag start and cached to prevent layout thrash.
+  - Teams and pages lists do not render overlays; items fade slightly while dragging for feedback.
 
 - Performance considerations:
   - Lists inside sections are memoized (`TeamSectionList`, `PrivateSectionList`) to skip re-renders during drag.
   - Section order is persisted only on drag end via `api.users.setSidebarSectionsOrder`.
+  - Teams order is persisted only on drag end via `api.users.setSidebarTeamsOrder`.
+  - Pages order is persisted only on drag end via `api.blocks.reorderTopLevelPages`.
   - Default order fallback: `['teams','private']` when no user preference exists.
+
+- Behavior:
+  - Link clicks are suppressed during drag to avoid accidental navigation on drop.
 
 - Data model & API:
   - Field: `users.sidebar_sections_order?: ('teams' | 'private')[]`.
   - Mutation: `api.users.setSidebarSectionsOrder({ order })`.
   - Loaded with `api.users.getUser` and passed to the sidebar `Pages` component as `preloadedUser`.
+  - Field: `users.sidebar_team_order?: Id<'teams'>[]`.
+  - Mutation: `api.users.setSidebarTeamsOrder({ order })`.
+  - Mutation: `api.blocks.reorderTopLevelPages({ workosOrgId, scope, ids, teamId? })`.
+  - Query: `api.blocks.listTeamPagesForUser` honors `users.sidebar_team_order` when present; otherwise sorts by team name.
