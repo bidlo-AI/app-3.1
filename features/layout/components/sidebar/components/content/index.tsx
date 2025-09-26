@@ -62,9 +62,9 @@ async function Content({
   return (
     <Pages
       orgId={orgId}
+      preloadedUser={preloadedUser}
       preloadedPrivatePages={preloadedPrivatePages}
       preloadedTeamSections={preloadedTeamSections}
-      preloadedUser={preloadedUser}
     />
   );
 }

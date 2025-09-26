@@ -1,17 +1,20 @@
 'use client';
 
 import { useQuery, useMutation, Preloaded, usePreloadedQuery } from 'convex/react';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { useObservable, Show, observer, use$ } from '@legendapp/state/react';
-import { Plus, Users, ChevronRight, File } from 'lucide-react';
+//
+import { useObservable, Show, use$ } from '@legendapp/state/react';
+import { Users } from 'lucide-react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useMemo, memo, useCallback, useState, useRef, useEffect } from 'react';
 import { Id, Doc } from '@/convex/_generated/dataModel';
-import { Button } from '@/components/ui/button';
-import { Observable } from '@legendapp/state';
 import { api } from '@/convex/_generated/api';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
+import { MoreMenu } from '@/components/menus/more-menu';
+import { PageMoreContent } from './page/components/more-content';
+import { TeamMoreContent } from './team/components/more-content';
+import { AddIconButton } from './components/add-icon-button';
+import { ExpandButton } from './components/expand-button';
 import {
   DndContext,
   PointerSensor,
@@ -25,62 +28,8 @@ import {
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { restrictToVerticalAxis, restrictToParentElement } from '@dnd-kit/modifiers';
-
-// Reusable add button with tooltip to reduce duplication across sections and items
-const AddIconButton = ({
-  ariaLabel,
-  tooltipText,
-  className,
-  onClick,
-}: {
-  ariaLabel: string;
-  tooltipText: string;
-  className?: string;
-  onClick: () => void;
-}) => {
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <Button
-          size="icon"
-          variant="ghost"
-          aria-label={ariaLabel}
-          style={{ height: '20px', width: '20px' }}
-          className={cn('rounded text-muted-foreground-opaque', className)}
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            onClick();
-          }}
-        >
-          <Plus className="size-4" />
-        </Button>
-      </TooltipTrigger>
-      <TooltipContent side="bottom">{tooltipText}</TooltipContent>
-    </Tooltip>
-  );
-};
-
-const ExpandButton = ({ open$, className }: { open$: Observable<boolean>; className: string }) => {
-  const open = use$(open$);
-
-  return (
-    <div
-      role="button"
-      aria-label={open ? 'Collapse' : 'Expand'}
-      onClick={(e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        open$.set(!open);
-      }}
-      className={cn('size-5 rounded hover:bg-hover flex items-center justify-center', className)}
-    >
-      <ChevronRight
-        className={cn('size-5 text-muted-foreground-opaque transition-transform duration-150', open && 'rotate-90')}
-      />
-    </div>
-  );
-};
+import { PageIcon } from './components/page/icon';
+import { EmptyStateRow } from './components/empty-state-row';
 
 // Shared type for child creation callback used by row items
 type CreateNewPageHandler = (args: {
@@ -90,30 +39,7 @@ type CreateNewPageHandler = (args: {
   title?: string;
 }) => Promise<void>;
 
-// Presentational icon content for a page row with inline expand affordance
-const PageIcon = observer(({ open$ }: { open$: Observable<boolean> }) => (
-  <span className="relative inline-flex items-center justify-center size-5 shrink-0">
-    <File className={cn('size-5 group-hover/list-row:opacity-0')} />
-    <ExpandButton open$={open$} className="group-hover/list-row:opacity-100 opacity-0 absolute -inset-px" />
-  </span>
-));
-
-// Reusable empty state row to avoid duplicated markup
-const EmptyStateRow = memo(function EmptyStateRow({
-  indent,
-  label = 'No pages inside',
-}: {
-  indent: number;
-  label?: string;
-}) {
-  // Memoize style object to avoid re-creating it on every render
-  const indentStyle = useMemo(() => ({ padding: '0 8px', paddingLeft: 8 + indent * 8 }), [indent]);
-  return (
-    <div className="flex items-center h-7.5 text-muted-foreground-opaque" style={indentStyle}>
-      <span className="opacity-50">{label}</span>
-    </div>
-  );
-});
+type SidebarSectionId = 'teams' | 'private';
 
 // Shared list row to unify layout for Team and Page items
 const ListRow = memo(function ListRow({
@@ -127,6 +53,7 @@ const ListRow = memo(function ListRow({
   addTooltip,
   labelClassName,
   selected,
+  moreMenu,
 }: {
   href?: string;
   label: string;
@@ -138,6 +65,8 @@ const ListRow = memo(function ListRow({
   addTooltip?: string;
   labelClassName?: string;
   selected?: boolean;
+  // Optional right-side actions rendered before the Add button (e.g. More menu)
+  moreMenu?: React.ReactNode;
 }) {
   // Memoize style object to avoid identity changes on every render
   const indentStyle = useMemo(() => ({ padding: '0 8px', paddingLeft: 8 + indent * 8 }), [indent]);
@@ -156,7 +85,7 @@ const ListRow = memo(function ListRow({
   return (
     <div
       className={cn(
-        'cursor-pointer group/list-row flex items-center h-7.5 rounded-md hover:bg-hover pr-2',
+        'cursor-pointer group/list-row flex items-center h-7.5 rounded-md hover:bg-hover pr-2 gap-0.5',
         selected && 'bg-hover',
       )}
     >
@@ -167,6 +96,9 @@ const ListRow = memo(function ListRow({
       ) : (
         <div className="flex-1 min-w-0">{Left}</div>
       )}
+      {onAdd &&
+        // Inline "More" dropdown trigger sits to the left of the Add icon when provided
+        moreMenu}
       {onAdd && (
         <AddIconButton
           ariaLabel={addAriaLabel ?? 'Add'}
@@ -208,6 +140,20 @@ const PageRow = memo(function PageRow({
       addAriaLabel="Add subpage"
       addTooltip="Add subpage"
       selected={isSelected}
+      moreMenu={
+        <MoreMenu
+          modal={true}
+          aria-label="More options"
+          tooltip="Delete, duplicate, and more..."
+          className="rounded text-muted-foreground-opaque opacity-0 size-5 group-hover/list-row:opacity-100 focus:opacity-100"
+          // onClick={(e) => {
+          //   e.preventDefault();
+          //   e.stopPropagation();
+          // }}
+        >
+          <PageMoreContent title={title} />
+        </MoreMenu>
+      }
     />
   );
 });
@@ -339,6 +285,20 @@ const TeamItem = memo(function TeamItem({
         addAriaLabel={`Add page to ${teamName}`}
         addTooltip="Add page"
         labelClassName="font-semibold"
+        moreMenu={
+          <MoreMenu
+            modal={true}
+            aria-label="More options"
+            className="rounded text-muted-foreground-opaque size-5 opacity-0 group-hover/list-row:opacity-100 focus:opacity-100"
+            // onClick={(e) => {
+            //   e.preventDefault();
+            //   e.stopPropagation();
+            // }}
+            tooltip="Team settings and members..."
+          >
+            <TeamMoreContent teamName={teamName} />
+          </MoreMenu>
+        }
       />
       <Show if={open$}>
         {/* Show empty state when team has no pages */}
@@ -619,8 +579,6 @@ export const Pages = memo(function Pages({
   const setSectionsOrder = useMutation(api.users.setSidebarSectionsOrder);
   const router = useRouter();
 
-  // Local section order state, defaulting to persisted user preference or fallback
-  type SidebarSectionId = 'teams' | 'private';
   const [sectionOrder, setSectionOrder] = useState<Array<SidebarSectionId>>(() => {
     const persisted = user?.sidebar_sections_order as SidebarSectionId[] | undefined;
     return Array.isArray(persisted) && persisted.length > 0 ? persisted : ['teams', 'private'];
