@@ -6,6 +6,20 @@ import type { Doc } from './_generated/dataModel';
 // --------------------------------
 
 /**
+ * Get the WorkOS user and organization ids from the authenticated WorkOS user.
+ * Throws if unauthenticated.
+ */
+export async function getSessionInfo(
+  ctx: QueryCtx | MutationCtx,
+): Promise<{ workos_user_id: string; workos_org_id: string }> {
+  const identity = await ctx.auth.getUserIdentity();
+  if (!identity) throw new Error('User not authenticated');
+  const workos_user_id = identity.subject;
+  const workos_org_id = identity.organization as string;
+  return { workos_user_id, workos_org_id };
+}
+
+/**
  * Get the current Convex `users` document for the authenticated WorkOS user.
  * Throws if unauthenticated or user doc not found.
  */

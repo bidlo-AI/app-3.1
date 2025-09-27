@@ -2,7 +2,7 @@ import { observer } from '@legendapp/state/react';
 import { Observable } from '@legendapp/state';
 import { File } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { ExpandButton } from '../expand-button'; // Add this import
+import { ExpandButton } from '../../buttons/expand-button'; // Add this import
 
 // Presentational icon content for a page row with inline expand affordance
 export const PageIcon = observer(({ open$ }: { open$: Observable<boolean> }) => (

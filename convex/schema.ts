@@ -1,6 +1,9 @@
 import { defineSchema, defineTable } from 'convex/server';
 import { v } from 'convex/values';
 
+// Notes
+// - created_by, owner_id, updated_by are all workos_user_ids (not the convex user ids)
+
 export default defineSchema({
   users: defineTable({
     email: v.string(),
@@ -23,15 +26,15 @@ export default defineSchema({
     ),
     sidebar_hidden: v.optional(v.boolean()),
     sidebar_width: v.optional(v.number()),
-    // Order of high-level sidebar sections for this user
-    sidebar_sections_order: v.optional(v.array(v.union(v.literal('teams'), v.literal('private')))),
-    // Optional per-user ordering of teams in the sidebar
-    sidebar_team_order: v.optional(v.array(v.id('teams'))),
     agent_panel_hidden: v.optional(v.boolean()),
     agent_panel_width: v.optional(v.number()),
     agent_panel_page: v.optional(
       v.union(v.literal('chat'), v.literal('memory'), v.literal('tasks'), v.literal('history'), v.literal('new')),
     ),
+    // Order of high-level sidebar sections for this user
+    sidebar_sections_order: v.optional(v.array(v.union(v.literal('teams'), v.literal('private')))),
+    // Optional per-user ordering of teams in the sidebar
+    sidebar_team_order: v.optional(v.array(v.id('teams'))),
   })
     .index('by_email', ['email'])
     .index('by_workos_id', ['workos_id']),
@@ -65,33 +68,32 @@ export default defineSchema({
   // TEAMS
   // ------------------------------------------------------------
   teams: defineTable({
-    organizationId: v.id('organizations'),
+    workos_org_id: v.string(),
     name: v.string(),
     visibility: v.union(v.literal('open'), v.literal('closed'), v.literal('private')),
-    createdAt: v.number(),
-    createdBy: v.id('users'),
+    created_at: v.number(),
+    created_by: v.string(),
   })
-    .index('by_org', ['organizationId'])
-    .index('by_org_name', ['organizationId', 'name']),
+    .index('by_org', ['workos_org_id'])
+    .index('by_org_name', ['workos_org_id', 'name']),
 
   team_members: defineTable({
-    teamId: v.id('teams'),
-    userId: v.id('users'),
+    team_id: v.id('teams'),
+    workos_user_id: v.string(),
     role: v.union(v.literal('owner'), v.literal('admin'), v.literal('member')),
-    createdAt: v.number(),
+    created_at: v.number(),
   })
-    .index('by_team', ['teamId'])
-    .index('by_user', ['userId'])
-    // Composite index to check membership for a team+user without filtering
-    .index('by_team_user', ['teamId', 'userId']),
+    .index('by_team', ['team_id'])
+    .index('by_user', ['workos_user_id'])
+    .index('by_team_user', ['team_id', 'workos_user_id']),
 
   // ------------------------------------------------------------
   // BLOCK GRAPH
   // ------------------------------------------------------------
   blocks: defineTable({
-    organizationId: v.id('organizations'),
-    ownerId: v.id('users'),
-    teamId: v.optional(v.id('teams')),
+    workos_org_id: v.string(),
+    owner_id: v.string(),
+    team_id: v.optional(v.id('teams')),
     scope: v.union(v.literal('private'), v.literal('team'), v.literal('org'), v.literal('custom')),
     type: v.union(
       v.literal('page'),
@@ -103,158 +105,157 @@ export default defineSchema({
     title: v.optional(v.string()),
 
     // Hierarchy
-    parentId: v.optional(v.id('blocks')),
+    parent_id: v.optional(v.id('blocks')),
     position: v.number(),
     ancestors: v.array(v.id('blocks')),
     depth: v.number(),
     // Optional during create; set to own id post-insert for top-level pages
-    rootId: v.optional(v.id('blocks')),
+    root_id: v.optional(v.id('blocks')),
 
     // Content
     content: v.optional(v.any()),
 
     // Lifecycle / audit
-    isArchived: v.optional(v.boolean()),
-    archivedAt: v.optional(v.number()),
-    deletedAt: v.optional(v.number()),
-    createdAt: v.number(),
-    createdBy: v.id('users'),
-    updatedAt: v.number(),
-    updatedBy: v.id('users'),
+    is_archived: v.optional(v.boolean()),
+    archived_at: v.optional(v.number()),
+    deleted_at: v.optional(v.number()),
+    created_at: v.number(),
+    created_by: v.string(),
+    updated_at: v.number(),
+    updated_by: v.string(),
   })
-    .index('by_org', ['organizationId'])
-    .index('by_parent_pos', ['parentId', 'position'])
-    .index('by_owner_scope', ['ownerId', 'scope'])
-    // Add organizationId to support queries scoped by org + owner + scope
-    .index('by_owner_scope_org', ['ownerId', 'scope', 'organizationId'])
-    .index('by_team', ['teamId'])
+    .index('by_org', ['workos_org_id'])
+    .index('by_parent_pos', ['parent_id', 'position'])
+    .index('by_owner_scope', ['owner_id', 'scope'])
+    .index('by_owner_scope_org', ['owner_id', 'scope', 'workos_org_id'])
+    .index('by_team', ['team_id'])
     .index('by_type', ['type'])
-    .index('by_root_pos', ['rootId', 'position']),
+    .index('by_root_pos', ['root_id', 'position']),
 
   // ------------------------------------------------------------
   // PERMISSIONS
   // ------------------------------------------------------------
   block_permissions: defineTable({
-    blockId: v.id('blocks'),
+    block_id: v.id('blocks'),
     subject: v.union(
-      v.object({ kind: v.literal('user'), userId: v.id('users') }),
-      v.object({ kind: v.literal('team'), teamId: v.id('teams') }),
-      v.object({ kind: v.literal('org'), organizationId: v.id('organizations') }),
+      v.object({ kind: v.literal('user'), workos_user_id: v.string() }),
+      v.object({ kind: v.literal('team'), team_id: v.id('teams') }),
+      v.object({ kind: v.literal('org'), workos_org_id: v.string() }),
       v.object({ kind: v.literal('public') }),
     ),
     level: v.union(v.literal('read'), v.literal('write'), v.literal('admin')),
-    subjectKey: v.string(), // e.g., user:ID, team:ID, org:ID, public
-    createdAt: v.number(),
-    createdBy: v.id('users'),
+    subject_key: v.string(),
+    created_at: v.number(),
+    created_by: v.string(),
   })
-    .index('by_block', ['blockId'])
-    .index('by_subjectKey', ['subjectKey'])
-    .index('by_block_subject', ['blockId', 'subjectKey']),
+    .index('by_block', ['block_id'])
+    .index('by_subjectKey', ['subject_key'])
+    .index('by_block_subject', ['block_id', 'subject_key']),
 
   // ------------------------------------------------------------
   // SHARE LINKS
   // ------------------------------------------------------------
   share_links: defineTable({
-    blockId: v.id('blocks'),
+    block_id: v.id('blocks'),
     token: v.string(),
     level: v.union(v.literal('read'), v.literal('write')),
-    expiresAt: v.optional(v.number()),
-    createdAt: v.number(),
-    createdBy: v.id('users'),
+    expires_at: v.optional(v.number()),
+    created_at: v.number(),
+    created_by: v.string(),
   })
     .index('by_token', ['token'])
-    .index('by_block', ['blockId']),
+    .index('by_block', ['block_id']),
 
   // ------------------------------------------------------------
   // FILES (metadata)
   //! shuold just be moved to conent or the content of a new "file-chunks" block type
   // ------------------------------------------------------------
   files: defineTable({
-    blockId: v.id('blocks'),
-    organizationId: v.id('organizations'),
-    storageKey: v.string(),
+    block_id: v.id('blocks'),
+    workos_org_id: v.string(),
+    storage_key: v.string(),
     name: v.string(),
     mime: v.string(),
     size: v.number(),
     sha256: v.optional(v.string()),
-    uploadedBy: v.id('users'),
-    uploadedAt: v.number(),
+    uploaded_by: v.string(),
+    uploaded_at: v.number(),
   })
-    .index('by_block', ['blockId'])
-    .index('by_org', ['organizationId']),
+    .index('by_block', ['block_id'])
+    .index('by_org', ['workos_org_id']),
 
   // ------------------------------------------------------------
   // THREADS (metadata)
   //! tbd on how to implement threads
   // ------------------------------------------------------------
   threads: defineTable({
-    blockId: v.id('blocks'),
-    organizationId: v.id('organizations'),
-    createdBy: v.id('users'),
+    block_id: v.id('blocks'),
+    workos_org_id: v.string(),
+    created_by: v.string(),
     model: v.optional(v.string()),
     status: v.optional(v.union(v.literal('open'), v.literal('closed'))),
-    createdAt: v.number(),
-    updatedAt: v.number(),
+    created_at: v.number(),
+    updated_at: v.number(),
   })
-    .index('by_org', ['organizationId'])
-    .index('by_block', ['blockId']),
+    .index('by_org', ['workos_org_id'])
+    .index('by_block', ['block_id']),
 
   messages: defineTable({
     // legacy fields
     content: v.string(),
     author: v.string(), // user email or name
-    authorId: v.string(), // workos user id
-    organizationId: v.string(), // workos organization id
+    author_id: v.string(),
+    workos_org_id: v.string(),
     timestamp: v.number(),
 
     // new optional fields
-    threadId: v.optional(v.id('threads')),
+    thread_id: v.optional(v.id('threads')),
     role: v.optional(v.union(v.literal('user'), v.literal('assistant'), v.literal('system'))),
-    blockId: v.optional(v.id('blocks')),
+    block_id: v.optional(v.id('blocks')),
     meta: v.optional(v.any()),
-    orgId: v.optional(v.id('organizations')),
-    userId: v.optional(v.id('users')),
+    org_id: v.optional(v.string()),
+    workos_user_id: v.optional(v.string()),
   })
-    .index('by_organization', ['organizationId'])
-    .index('by_thread', ['threadId']),
+    .index('by_organization', ['workos_org_id'])
+    .index('by_thread', ['thread_id']),
 
   // ------------------------------------------------------------
   // PRESENCE
   // ------------------------------------------------------------
   // Presence component tables (localized copy from @convex-dev/presence)
   presence: defineTable({
-    roomId: v.string(),
-    userId: v.string(),
+    room_id: v.string(),
+    user_id: v.string(),
     online: v.boolean(),
-    lastDisconnected: v.number(),
+    last_disconnected: v.number(),
   })
-    .index('user_online_room', ['userId', 'online', 'roomId'])
-    .index('room_order', ['roomId', 'online', 'lastDisconnected']),
+    .index('user_online_room', ['user_id', 'online', 'room_id'])
+    .index('room_order', ['room_id', 'online', 'last_disconnected']),
 
   presence_sessions: defineTable({
-    roomId: v.string(),
-    userId: v.string(),
-    sessionId: v.string(),
+    room_id: v.string(),
+    user_id: v.string(),
+    session_id: v.string(),
   })
-    .index('room_user_session', ['roomId', 'userId', 'sessionId'])
-    .index('sessionId', ['sessionId']),
+    .index('room_user_session', ['room_id', 'user_id', 'session_id'])
+    .index('sessionId', ['session_id']),
 
-  presence_roomTokens: defineTable({
+  presence_room_tokens: defineTable({
     token: v.string(),
-    roomId: v.string(),
+    room_id: v.string(),
   })
     .index('token', ['token'])
-    .index('room', ['roomId']),
+    .index('room', ['room_id']),
 
-  presence_sessionTokens: defineTable({
+  presence_session_tokens: defineTable({
     token: v.string(),
-    sessionId: v.string(),
+    session_id: v.string(),
   })
     .index('token', ['token'])
-    .index('sessionId', ['sessionId']),
+    .index('sessionId', ['session_id']),
 
-  presence_sessionTimeouts: defineTable({
-    sessionId: v.string(),
-    scheduledFunctionId: v.id('_scheduled_functions'),
-  }).index('sessionId', ['sessionId']),
+  presence_session_timeouts: defineTable({
+    session_id: v.string(),
+    scheduled_function_id: v.id('_scheduled_functions'),
+  }).index('sessionId', ['session_id']),
 });

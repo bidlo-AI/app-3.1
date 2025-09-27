@@ -1,5 +1,5 @@
 import { Icon } from '@/assets/Icon';
-import { MoreMenu } from '@/components/menus/more-menu';
+import { MoreMenu } from '@/features/layout/components/sidebar/components/content/components/pages/components/buttons/more-button';
 import { DropdownMenuGroup } from '@/components/ui/dropdown-menu';
 import { LogoutButton } from '@/features/auth/components/header/menu/logout';
 // import { Progress } from "@/features/auth/components/layout-onboarding/header/progress";

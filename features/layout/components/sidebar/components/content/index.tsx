@@ -1,4 +1,4 @@
-import { Header } from './components/header';
+import { Profile } from './components/profile';
 import { api } from '@/convex/_generated/api';
 import { Preloaded } from 'convex/react';
 import { preloadQuery } from 'convex/nextjs';
@@ -16,52 +16,58 @@ import { Pages } from './components/pages';
 // Kept as a client component so it can render inside the mobile Sheet.
 export const SidebarContent = ({
   preloadedUser,
-  orgId,
   accessToken,
 }: {
   preloadedUser: Preloaded<typeof api.users.getUser>;
-  orgId: string;
   accessToken: string;
 }) => (
-  <>
+  <div className="grid h-full grid-rows-[auto_auto_1fr]">
     <Header preloadedUser={preloadedUser} />
+    <div className="flex flex-col px-2 pb-5 gap-5 overflow-y-auto">
+      <div className="flex flex-col gap-1">
+        <Suspense fallback={<LoadingContent />}>
+          <Content accessToken={accessToken} preloadedUser={preloadedUser} />
+        </Suspense>
+      </div>
+      <Footer />
+    </div>
+  </div>
+);
+
+//------------------------------------------
+// SIDEBAR SECTIONS
+//------------------------------------------
+const Header = ({ preloadedUser }: { preloadedUser: Preloaded<typeof api.users.getUser> }) => (
+  <>
+    <Profile preloadedUser={preloadedUser} />
     <div className="flex flex-col gap-px px-2 mb-2">
       <Home />
       <Search />
     </div>
-    <div className="flex flex-col px-2 mb-5 gap-5">
-      <div className="flex flex-col gap-1">
-        <Suspense fallback={<LoadingContent />}>
-          <Content orgId={orgId} accessToken={accessToken} preloadedUser={preloadedUser} />
-        </Suspense>
-      </div>
-      <div className="flex flex-col gap-1">
-        <Data />
-        <Settings />
-      </div>
-    </div>
   </>
 );
 
-// Server component that preloads sidebar queries for hydration.
-// This reduces client waterfalls and keeps live reactivity via usePreloadedQuery.
+const Footer = () => (
+  <div className="flex flex-col gap-1">
+    <Data />
+    <Settings />
+  </div>
+);
+
 async function Content({
-  orgId,
   accessToken,
   preloadedUser,
 }: {
-  orgId: string;
   accessToken: string;
   preloadedUser: Preloaded<typeof api.users.getUser>;
 }) {
   const [preloadedPrivatePages, preloadedTeamSections] = await Promise.all([
-    preloadQuery(api.blocks.listPrivatePages, { workosOrgId: orgId }, { token: accessToken }),
-    preloadQuery(api.blocks.listTeamPagesForUser, { workosOrgId: orgId }, { token: accessToken }),
+    preloadQuery(api.blocks.listPrivatePages, {}, { token: accessToken }),
+    preloadQuery(api.blocks.listTeamPagesForUser, {}, { token: accessToken }),
   ]);
 
   return (
     <Pages
-      orgId={orgId}
       preloadedUser={preloadedUser}
       preloadedPrivatePages={preloadedPrivatePages}
       preloadedTeamSections={preloadedTeamSections}
