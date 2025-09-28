@@ -37,6 +37,7 @@ export const PrivateSection = ({
               key={p._id}
               id={p._id as Id<'blocks'>}
               title={p.title}
+              icon={p.icon}
               indent={0}
               scope="private"
               handleAddPage={handleAddPage}

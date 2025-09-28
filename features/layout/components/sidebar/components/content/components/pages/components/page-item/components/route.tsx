@@ -5,16 +5,20 @@ import { useMemo } from 'react';
 import { BaseArgs } from '../types';
 import { Observable } from '@legendapp/state';
 import { ExpandButton } from '../../buttons/expand-button';
-import { File } from 'lucide-react';
+import { FileText } from 'lucide-react';
+import { Icon as BlockIcon } from '@/components/icons/icon';
+import type { Doc } from '@/convex/_generated/dataModel';
 
 export const Route = ({
   id,
   title,
   indent,
   open$,
+  icon,
 }: BaseArgs & {
   indent: number;
   open$: Observable<boolean>;
+  icon?: Doc<'blocks'>['icon'];
 }) => {
   const indentStyle = useMemo(() => ({ padding: '0 8px', paddingLeft: 8 + indent * 8 }), [indent]);
 
@@ -26,7 +30,11 @@ export const Route = ({
         style={indentStyle}
       >
         <span className="relative inline-flex items-center justify-center size-5 shrink-0">
-          <File className="size-5 group-hover/list-row:opacity-0 text-muted-foreground-opaque" />
+          {icon ? (
+            <BlockIcon icon={icon} title={title} className="size-5 group-hover/list-row:opacity-0" />
+          ) : (
+            <FileText className="size-5 group-hover/list-row:opacity-0 text-muted-foreground-opaque" />
+          )}
           <ExpandButton open$={open$} className="group-hover/list-row:opacity-100 opacity-0 absolute -inset-px" />
         </span>
         <div className="truncate">{title}</div>

@@ -45,6 +45,7 @@ export const getBlock = query({
         title: block.title ?? 'Untitled',
         type: block.type,
         scope: block.scope,
+        icon: block.icon ?? undefined,
         content: block.content ?? null,
         createdAt: block.created_at,
         updatedAt: block.updated_at,
@@ -53,6 +54,7 @@ export const getBlock = query({
         _id: c._id,
         title: c.title ?? 'Untitled',
         type: c.type,
+        icon: c.icon ?? undefined,
         position: c.position,
       })),
     } as const;
@@ -75,7 +77,12 @@ export const listPrivatePages = query({
 
     const pages = candidatePages.filter((p) => p.type === 'page' && p.depth === 0);
     pages.sort((a, b) => (a.position ?? 0) - (b.position ?? 0) || (a.created_at ?? 0) - (b.created_at ?? 0));
-    return pages.map((p) => ({ _id: p._id, title: p.title ?? 'Untitled', position: p.position }));
+    return pages.map((p) => ({
+      _id: p._id,
+      title: p.title ?? 'Untitled',
+      position: p.position,
+      icon: p.icon ?? undefined,
+    }));
   },
 });
 
@@ -105,15 +112,20 @@ export const listTeamPagesForUser = query({
     );
 
     let result: Array<{
-      team: { _id: Id<'teams'>; name: string };
+      team: { _id: Id<'teams'>; name: string; icon?: Doc<'teams'>['icon'] };
       pages: Array<{ _id: Id<'blocks'>; title: string; position?: number }>;
     }> = teamDocs.map((team, idx) => {
       const teamPages = pagesByTeam[idx];
       const pages = teamPages.filter((p) => p.scope === 'team' && p.type === 'page' && p.depth === 0);
       pages.sort((a, b) => (a.position ?? 0) - (b.position ?? 0) || (a.created_at ?? 0) - (b.created_at ?? 0));
       return {
-        team: { _id: team._id as Id<'teams'>, name: team.name },
-        pages: pages.map((p) => ({ _id: p._id, title: p.title ?? 'Untitled', position: p.position })),
+        team: { _id: team._id as Id<'teams'>, name: team.name, icon: team.icon ?? undefined },
+        pages: pages.map((p) => ({
+          _id: p._id,
+          title: p.title ?? 'Untitled',
+          position: p.position,
+          icon: p.icon ?? undefined,
+        })),
       };
     });
     // Sort teams by user's preferred order if available; otherwise by name
@@ -165,7 +177,12 @@ export const listChildren = query({
     // Filter type in-memory to avoid an extra index while leveraging parent+position index
     const pageChildren = children.filter((c) => c.type === 'page');
     pageChildren.sort((a, b) => (a.position ?? 0) - (b.position ?? 0) || (a.created_at ?? 0) - (b.created_at ?? 0));
-    return pageChildren.map((c) => ({ _id: c._id, title: c.title ?? 'Untitled', position: c.position }));
+    return pageChildren.map((c) => ({
+      _id: c._id,
+      title: c.title ?? 'Untitled',
+      position: c.position,
+      icon: c.icon ?? undefined,
+    }));
   },
 });
 

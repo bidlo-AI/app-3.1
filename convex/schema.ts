@@ -4,6 +4,33 @@ import { v } from 'convex/values';
 // Notes
 // - created_by, owner_id, updated_by are all workos_user_ids (not the convex user ids)
 
+// Reusable icon validator shared across tables
+const iconValidator = v.union(
+  v.object({
+    kind: v.literal('emoji'),
+    emoji: v.string(),
+    shortcode: v.optional(v.string()),
+    version: v.optional(v.string()),
+  }),
+  v.object({
+    kind: v.literal('preset'),
+    key: v.string(),
+    style: v.optional(v.union(v.literal('line'), v.literal('solid'))),
+  }),
+  v.object({
+    kind: v.literal('image'),
+    file_id: v.id('files'),
+    crop: v.optional(
+      v.object({
+        x: v.number(),
+        y: v.number(),
+        size: v.number(),
+      }),
+    ),
+    variant: v.optional(v.union(v.literal('original'), v.literal('512'), v.literal('128'))),
+  }),
+);
+
 export default defineSchema({
   users: defineTable({
     email: v.string(),
@@ -70,6 +97,8 @@ export default defineSchema({
   teams: defineTable({
     workos_org_id: v.string(),
     name: v.string(),
+    // Optional team icon, same shape as blocks.icon
+    icon: v.optional(iconValidator),
     visibility: v.union(v.literal('open'), v.literal('closed'), v.literal('private')),
     created_at: v.number(),
     created_by: v.string(),
@@ -103,6 +132,8 @@ export default defineSchema({
       v.literal('document'),
     ),
     title: v.optional(v.string()),
+    // Optional page icon. Discriminated union across emoji, preset, or uploaded image.
+    icon: v.optional(iconValidator),
 
     // Hierarchy
     parent_id: v.optional(v.id('blocks')),
@@ -180,9 +211,13 @@ export default defineSchema({
     sha256: v.optional(v.string()),
     uploaded_by: v.string(),
     uploaded_at: v.number(),
+    // Light purpose tagging allows fast lookups and constraints per block
+    purpose: v.optional(v.union(v.literal('page_icon'), v.literal('page_cover'), v.literal('attachment'))),
   })
     .index('by_block', ['block_id'])
-    .index('by_org', ['workos_org_id']),
+    .index('by_org', ['workos_org_id'])
+    // Fetch per-block file by purpose quickly (e.g., active page icon)
+    .index('by_block_purpose', ['block_id', 'purpose']),
 
   // ------------------------------------------------------------
   // THREADS (metadata)

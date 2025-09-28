@@ -3,7 +3,6 @@ import { MenuItem } from '@/components/menus/menu-item';
 import { useQueryState } from 'nuqs';
 
 export const MenuContent = () => {
-  // We only need the setter; omit the state to avoid unused var lint.
   const [, setOpen] = useQueryState('new-team');
 
   return (

@@ -50,9 +50,9 @@ export const listMyTeams = query({
     // Type guard to drop nulls from parallel fetches
     const validTeamDocs = teamDocs.filter((t): t is Doc<'teams'> => t !== null);
 
-    const teams: Array<{ _id: Id<'teams'>; name: string }> = validTeamDocs
+    const teams: Array<{ _id: Id<'teams'>; name: string; icon?: Doc<'teams'>['icon'] }> = validTeamDocs
       .filter((t) => t.workos_org_id === workos_org_id)
-      .map((t) => ({ _id: t._id, name: t.name }));
+      .map((t) => ({ _id: t._id, name: t.name, icon: t.icon ?? undefined }));
 
     // Keep UI stable by sorting alphabetically by team name
     teams.sort((a, b) => a.name.localeCompare(b.name));

@@ -37,7 +37,6 @@ export const TeamSection = ({
           onClick={onAddTeam}
         />
       </SectionHeader>
-
       <Show if={open$}>
         <div className="flex flex-col gap-px pb-3">
           {teamSections.map((section) => (
@@ -45,7 +44,8 @@ export const TeamSection = ({
               <TeamItem
                 teamName={section.team.name}
                 teamId={section.team._id as Id<'teams'>}
-                pages={section.pages as { _id: string; title: string }[]}
+                teamIcon={section.team.icon}
+                pages={section.pages}
               />
             </div>
           ))}

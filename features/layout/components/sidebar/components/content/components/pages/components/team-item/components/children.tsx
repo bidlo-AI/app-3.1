@@ -13,7 +13,7 @@ export const Children = ({
   teamId,
 }: {
   open$: Observable<boolean>;
-  pages: { _id: string; title: string }[];
+  pages: { _id: string; title: string; icon?: unknown }[];
   teamId: Id<'teams'>;
 }) => {
   //handlers
@@ -29,6 +29,7 @@ export const Children = ({
               <PageItem
                 id={p._id as Id<'blocks'>}
                 title={p.title}
+                icon={p.icon as any}
                 indent={1}
                 scope="team"
                 teamId={teamId}

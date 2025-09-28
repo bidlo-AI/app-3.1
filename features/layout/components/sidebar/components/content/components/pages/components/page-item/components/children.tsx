@@ -36,6 +36,7 @@ export const Children = ({
             key={c._id}
             id={c._id as Id<'blocks'>}
             title={c.title}
+            icon={c.icon}
             indent={indent + 1}
             scope={scope}
             teamId={teamId}

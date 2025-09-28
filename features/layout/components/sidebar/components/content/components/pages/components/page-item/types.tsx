@@ -1,10 +1,12 @@
-import { Id } from '@/convex/_generated/dataModel';
+import { Id, Doc } from '@/convex/_generated/dataModel';
 
 //types
 export type BaseArgs = {
   id: Id<'blocks'>;
   title: string;
   teamId?: Id<'teams'>;
+  /** Optional block icon for this page */
+  icon?: Doc<'blocks'>['icon'];
 };
 
 export type HandleAddPage = (args: {

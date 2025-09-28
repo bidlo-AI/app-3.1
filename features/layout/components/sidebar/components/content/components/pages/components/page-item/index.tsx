@@ -20,6 +20,7 @@ export const PageItem = memo(function PageItem({
   indent,
   scope,
   teamId,
+  icon,
   handleAddPage,
 }: BaseArgs & {
   indent: number;
@@ -38,7 +39,7 @@ export const PageItem = memo(function PageItem({
           isSelected && 'bg-hover text-foreground ',
         )}
       >
-        <Route id={id} title={title} indent={indent} open$={open$} />
+        <Route id={id} title={title} indent={indent} open$={open$} icon={icon} />
         <Actions id={id} title={title} scope={scope} teamId={teamId} handleAddPage={handleAddPage} />
       </div>
       <Children id={id} indent={indent} scope={scope} teamId={teamId} handleAddPage={handleAddPage} open$={open$} />
