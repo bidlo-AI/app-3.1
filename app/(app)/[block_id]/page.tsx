@@ -6,14 +6,10 @@ import { preloadQuery, preloadedQueryResult } from 'convex/nextjs';
 import { api } from '@/convex/_generated/api';
 import type { Id } from '@/convex/_generated/dataModel';
 import Link from 'next/link';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+import Icon from '@/components/icons/icon';
+import { IconSelector } from '@/components/icons/icon-selector';
+import { Button } from '@/components/ui/button';
+import { Plus } from 'lucide-react';
 
 export default async function BlockPage({ params }: { params: Promise<{ block_id: string }> }) {
   const { block_id } = await params;
@@ -39,10 +35,19 @@ export default async function BlockPage({ params }: { params: Promise<{ block_id
 
       {/* Content */}
       <div className="content">
-        <Test />
-
         <div className="flex size-full flex-col justify-start p-4 gap-4">
           <div>
+            {/* Block icon above the title. If none, show an add icon button instead. */}
+            {data.block.icon ? (
+              <Icon icon={data.block.icon} title={data.block.title} className="size-8 mb-2" />
+            ) : (
+              <IconSelector>
+                <Button variant="secondary" size="xs" className="mb-2">
+                  <Plus />
+                  Add icon
+                </Button>
+              </IconSelector>
+            )}
             <div className="text-base font-semibold">{data.block.title}</div>
             <div className="text-muted-foreground text-sm">
               {data.block.type} • {data.block.scope}
@@ -80,22 +85,6 @@ export default async function BlockPage({ params }: { params: Promise<{ block_id
     </>
   );
 }
-
-const Test = () => {
-  return (
-    <DropdownMenu modal={true}>
-      <DropdownMenuTrigger>Open</DropdownMenuTrigger>
-      <DropdownMenuContent>
-        <DropdownMenuLabel>My Account</DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem>Profile</DropdownMenuItem>
-        <DropdownMenuItem>Billing</DropdownMenuItem>
-        <DropdownMenuItem>Team</DropdownMenuItem>
-        <DropdownMenuItem>Subscription</DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-};
 
 // const Chat = ({ block_id }: { block_id: string }) => {
 //   return (
