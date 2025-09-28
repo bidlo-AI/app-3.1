@@ -10,6 +10,8 @@ import * as React from 'react';
  *   {{
  *     teams: () => <Teams />,
  *     private: () => <Private />,
+ *     // Optional case for when value is undefined
+ *     undefined: () => <UndefinedCase />,
  *     default: () => <Fallback />,
  *   }}
  * </Switch>
@@ -18,14 +20,17 @@ import * as React from 'react';
 type PropertyKeyLike = string | number | symbol;
 
 type SwitchCases<T extends PropertyKeyLike> = Partial<Record<T, () => React.ReactNode>> & {
+  /** Rendered when no case matches */
   default?: () => React.ReactNode;
+  /** Rendered when the resolved value is strictly undefined */
+  ['undefined']?: () => React.ReactNode;
 };
 
 export type SwitchProps<T extends PropertyKeyLike> = {
   /**
    * The value to match. Can be a raw value (e.g., 'chat') or a function returning the value.
    */
-  value: T | (() => T);
+  value: T | undefined | (() => T | undefined);
   /**
    * Object of case renderers keyed by the case value, with an optional `default`.
    */
@@ -33,8 +38,15 @@ export type SwitchProps<T extends PropertyKeyLike> = {
 };
 
 export function Switch<T extends PropertyKeyLike>({ value, children }: SwitchProps<T>) {
-  const resolved = (typeof value === 'function' ? (value as () => T)() : value) as T;
+  // Resolve value whether a thunk or raw value; allow undefined
+  const resolved = (typeof value === 'function' ? (value as () => T | undefined)() : value) as T | undefined;
+
   const render =
-    (children as Record<PropertyKeyLike, (() => React.ReactNode) | undefined>)[resolved] ?? children.default;
+    (resolved === undefined
+      ? children['undefined']
+      : (children as Record<PropertyKeyLike, (() => React.ReactNode) | undefined>)[
+          resolved as unknown as PropertyKeyLike
+        ]) ?? children.default;
+
   return render ? <>{render()}</> : null;
 }

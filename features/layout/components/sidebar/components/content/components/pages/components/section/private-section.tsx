@@ -7,6 +7,7 @@ import { Id } from '@/convex/_generated/dataModel';
 import { SectionHeader } from './components/header';
 import { PageItem } from '../page-item';
 import { useHandleAddPage } from '../page-item/utils';
+import { AddIconButton } from '../buttons/add-icon-button';
 
 export const PrivateSection = ({
   preloadedPrivatePages,
@@ -21,12 +22,14 @@ export const PrivateSection = ({
 
   return (
     <>
-      <SectionHeader
-        title="Private"
-        onToggle={() => open$.set((prev: boolean) => !prev)}
-        onAdd={() => handleAddPage({ scope: 'private' })}
-        tooltip={'Add private page'}
-      />
+      <SectionHeader title="Private" onToggle={() => open$.set((prev: boolean) => !prev)}>
+        <AddIconButton
+          ariaLabel="Add a page"
+          tooltipText="Add a page"
+          className="size-7 opacity-0 group-hover/list-row:opacity-100 focus:opacity-100"
+          onClick={() => handleAddPage({ scope: 'private' })}
+        />
+      </SectionHeader>
       <Show if={open$}>
         <div className="flex flex-col gap-px pb-3">
           {privatePages.map((p) => (

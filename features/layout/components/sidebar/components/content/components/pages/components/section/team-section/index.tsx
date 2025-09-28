@@ -1,5 +1,5 @@
-import { SectionHeader } from './components/header';
-import { TeamItem } from '../team-item';
+import { SectionHeader } from '../components/header';
+import { TeamItem } from '../../team-item';
 import { usePreloadedQuery } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import { Preloaded } from 'convex/react';
@@ -8,6 +8,9 @@ import { useObservable } from '@legendapp/state/react';
 import { useCallback } from 'react';
 import { Show } from '@legendapp/state/react';
 import { Id } from '@/convex/_generated/dataModel';
+import { MoreMenu } from '../../buttons/more-button';
+import { AddIconButton } from '../../buttons/add-icon-button';
+import { MenuContent } from './menu-content';
 
 export const TeamSection = ({
   preloadedTeamSections,
@@ -23,12 +26,18 @@ export const TeamSection = ({
 
   return (
     <>
-      <SectionHeader
-        title="Teams"
-        onAdd={onAddTeam}
-        tooltip={'Add team'}
-        onToggle={() => open$.set((prev: boolean) => !prev)}
-      />
+      <SectionHeader title="Teams" onToggle={() => open$.set((prev: boolean) => !prev)}>
+        <MoreMenu aria-label="More" className="rounded text-muted-foreground-opaque size-5 ">
+          <MenuContent />
+        </MoreMenu>
+        <AddIconButton
+          ariaLabel="Add team"
+          tooltipText="Add team"
+          className="size-7 opacity-0 group-hover/list-row:opacity-100 focus:opacity-100"
+          onClick={onAddTeam}
+        />
+      </SectionHeader>
+
       <Show if={open$}>
         <div className="flex flex-col gap-px pb-3">
           {teamSections.map((section) => (

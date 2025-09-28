@@ -1,8 +1,6 @@
 'use client';
 
 import { memo } from 'react';
-import { cn } from '@/lib/utils';
-import { AddIconButton } from '../../buttons/add-icon-button';
 
 /**
  * SectionHeader
@@ -12,37 +10,25 @@ import { AddIconButton } from '../../buttons/add-icon-button';
 export const SectionHeader = memo(function SectionHeader({
   title,
   onToggle,
-  onAdd,
-  tooltip,
-  isSelected,
+  children,
 }: {
   title: string;
   onToggle: () => void;
-  onAdd: () => void;
-  tooltip: string;
-  isSelected?: boolean;
+  children?: React.ReactNode;
 }) {
   return (
-    <div
-      className={cn(
-        'cursor-pointer group/list-row flex items-center h-7.5 rounded-md hover:bg-hover pr-2 gap-0.5',
-        isSelected && 'bg-hover',
-      )}
-    >
+    <div className="cursor-pointer group/list-row flex items-center h-7.5 rounded-md hover:bg-hover pr-2 gap-0.5">
       <div
         role="button"
         onClick={onToggle}
         style={{ padding: '0 8px', paddingLeft: 8 }}
         className="h-full flex-1 flex items-center gap-2 min-w-0 pl-2 justify-start text-xs font-semibold text-muted-foreground-opaque truncate"
       >
-        <span className={cn('', isSelected && 'text-foreground')}>{title}</span>
+        {title}
       </div>
-      <AddIconButton
-        ariaLabel={tooltip}
-        tooltipText={tooltip}
-        className="size-7 opacity-0 group-hover/list-row:opacity-100 focus:opacity-100"
-        onClick={onAdd}
-      />
+      <div className="absolute right-0 w-0 overflow-hidden group-hover/list-row:w-fit group-hover/list-row:relative flex gap-0.5">
+        {children}
+      </div>
     </div>
   );
 });

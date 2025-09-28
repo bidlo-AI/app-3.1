@@ -10,6 +10,7 @@ import { AgentPanel } from '@/features/agent/features/panel';
 import { AgentProvider } from '@/features/agent/features/panel/providers/agentProvider';
 import { CommandProvider } from '@/features/layout/components/command/providers/CommandProvider';
 import { redirect } from 'next/navigation';
+import { AddTeamDialog } from '@/features/teams/add-team-dialog';
 
 export default async function Layout({ children }: { children: React.ReactNode }) {
   const { accessToken } = await withAuth();
@@ -33,6 +34,7 @@ export default async function Layout({ children }: { children: React.ReactNode }
           <AgentPanel startingWidth={u.agent_panel_width} />
           <Suspense fallback={null}>
             <HotkeysProvider />
+            <AddTeamDialog />
           </Suspense>
         </AgentProvider>
       </CommandProvider>

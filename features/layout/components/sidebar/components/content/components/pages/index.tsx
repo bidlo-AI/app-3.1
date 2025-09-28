@@ -29,8 +29,6 @@ export const Pages = memo(function Pages({
     return Array.isArray(persisted) && persisted.length > 0 ? persisted : DEFAULT_SECTION_ORDER;
   }, [user?.sidebar_sections_order]);
 
-  // HANDLERS
-
   return (
     <div className="flex flex-col gap-1">
       {sectionOrder.map((sectionId) => (
