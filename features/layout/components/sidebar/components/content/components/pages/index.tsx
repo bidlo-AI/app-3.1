@@ -32,9 +32,9 @@ export const Pages = memo(function Pages({
   // HANDLERS
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-1">
       {sectionOrder.map((sectionId) => (
-        <div key={sectionId} className="flex flex-col gap-px pb-1">
+        <div key={sectionId} className="flex flex-col gap-px">
           <Switch value={sectionId}>
             {{
               teams: () => <TeamSection preloadedTeamSections={preloadedTeamSections} />,

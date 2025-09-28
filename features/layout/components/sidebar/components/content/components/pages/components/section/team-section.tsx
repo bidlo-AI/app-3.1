@@ -30,11 +30,10 @@ export const TeamSection = ({
         onToggle={() => open$.set((prev: boolean) => !prev)}
       />
       <Show if={open$}>
-        <div className="flex flex-col gap-px">
+        <div className="flex flex-col gap-px pb-3">
           {teamSections.map((section) => (
             <div key={section.team._id}>
               <TeamItem
-                onAddTeam={onAddTeam}
                 teamName={section.team.name}
                 teamId={section.team._id as Id<'teams'>}
                 pages={section.pages as { _id: string; title: string }[]}

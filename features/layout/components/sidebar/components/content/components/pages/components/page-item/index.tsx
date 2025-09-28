@@ -34,11 +34,11 @@ export const PageItem = memo(function PageItem({
     <>
       <div
         className={cn(
-          'cursor-pointer group/list-row flex items-center h-7.5 rounded-md hover:bg-hover pr-2 gap-0.5 relative',
-          isSelected && 'bg-hover',
+          'cursor-pointer group/list-row flex items-center h-7.5 rounded-md hover:bg-hover pr-2 gap-0.5 relative text-muted-foreground-opaque',
+          isSelected && 'bg-hover text-foreground ',
         )}
       >
-        <Route id={id} title={title} indent={indent} isSelected={isSelected} open$={open$} />
+        <Route id={id} title={title} indent={indent} open$={open$} />
         <Actions id={id} title={title} scope={scope} teamId={teamId} handleAddPage={handleAddPage} />
       </div>
       <Children id={id} indent={indent} scope={scope} teamId={teamId} handleAddPage={handleAddPage} open$={open$} />

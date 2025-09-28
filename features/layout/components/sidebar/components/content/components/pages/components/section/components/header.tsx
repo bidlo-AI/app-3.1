@@ -32,8 +32,8 @@ export const SectionHeader = memo(function SectionHeader({
       <div
         role="button"
         onClick={onToggle}
-        className="flex items-center gap-2 min-w-0 pl-2 justify-start text-xs font-semibold text-muted-foreground-opaque truncate"
         style={{ padding: '0 8px', paddingLeft: 8 }}
+        className="h-full flex-1 flex items-center gap-2 min-w-0 pl-2 justify-start text-xs font-semibold text-muted-foreground-opaque truncate"
       >
         <span className={cn('', isSelected && 'text-foreground')}>{title}</span>
       </div>
