@@ -1,26 +1,13 @@
 'use client';
 
-import Link from 'next/link';
-import { memo, useCallback, useMemo } from 'react';
+import { memo } from 'react';
 import { usePathname } from 'next/navigation';
-import { useQuery } from 'convex/react';
-import { Show, use$, useObservable } from '@legendapp/state/react';
-import { Id } from '@/convex/_generated/dataModel';
-import { api } from '@/convex/_generated/api';
+import { useObservable } from '@legendapp/state/react';
 import { cn } from '@/lib/utils';
-import { MoreMenu } from '../buttons/more-button';
-import { PageMoreContent } from './components/more-content';
-import { PageIcon } from './components/icon';
-import { AddIconButton } from '../buttons/add-icon-button';
-import { EmptyStateRow } from '../empty-state-row';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+import { Route } from './components/route';
+import { Actions } from './components/actions';
+import { Children } from './components/children';
+import { BaseArgs, HandleAddPage } from './types';
 
 /**
  * PageItem
@@ -34,35 +21,14 @@ export const PageItem = memo(function PageItem({
   scope,
   teamId,
   handleAddPage,
-}: {
-  id: Id<'blocks'>;
-  title: string;
+}: BaseArgs & {
   indent: number;
   scope: 'private' | 'team';
-  teamId?: Id<'teams'>;
-  handleAddPage: (args: {
-    scope: 'private' | 'team';
-    teamId?: Id<'teams'>;
-    parentId?: Id<'blocks'>;
-    title?: string;
-  }) => Promise<void>;
+  handleAddPage: HandleAddPage;
 }) {
   const open$ = useObservable(false);
-  const isOpen = use$(open$);
   const pathname = usePathname();
   const isSelected = pathname === `/${id}`;
-
-  const children = useQuery(api.blocks.listChildren, isOpen && id ? { parentId: id } : 'skip');
-
-  const handleAddChild = useCallback(() => {
-    void handleAddPage({
-      scope,
-      teamId: scope === 'team' ? (teamId as Id<'teams'>) : undefined,
-      parentId: id,
-    });
-  }, [handleAddPage, id, scope, teamId]);
-
-  const indentStyle = useMemo(() => ({ padding: '0 8px', paddingLeft: 8 + indent * 8 }), [indent]);
 
   return (
     <>
@@ -72,70 +38,10 @@ export const PageItem = memo(function PageItem({
           isSelected && 'bg-hover',
         )}
       >
-        {/* Link to the page */}
-        <Link href={`/${id}`} prefetch={false} aria-label={title} className="flex-1 min-w-0">
-          <div
-            role="button"
-            className="flex items-center gap-2 min-w-0 pl-2 justify-start font-medium text-muted-foreground-opaque truncate"
-            style={indentStyle}
-          >
-            <PageIcon open$={open$} />
-            <div className={cn(`truncate`, isSelected && 'text-foreground')}>{title}</div>
-          </div>
-        </Link>
-
-        {/* More menu and add icon button */}
-        <div className="absolute right-0 w-0 overflow-hidden group-hover/list-row:w-fit group-hover/list-row:relative flex">
-          <MoreMenu
-            aria-label="More options"
-            tooltip="Delete, duplicate, and more..."
-            className="rounded text-muted-foreground-opaque opacity-0 size-5 group-hover/list-row:opacity-100 focus:opacity-100"
-          >
-            <PageMoreContent title={title} />
-          </MoreMenu>
-          <AddIconButton
-            ariaLabel="Add subpage"
-            tooltipText="Add a page inside"
-            className="size-7 opacity-0 group-hover/list-row:opacity-100 focus:opacity-100"
-            onClick={handleAddChild}
-          />
-        </div>
-        <Test />
+        <Route id={id} title={title} indent={indent} isSelected={isSelected} open$={open$} />
+        <Actions id={id} title={title} scope={scope} teamId={teamId} handleAddPage={handleAddPage} />
       </div>
-
-      {/* Child pages */}
-      <Show if={open$}>
-        <div className="flex flex-col gap-px">
-          {Array.isArray(children) && children.length === 0 && <EmptyStateRow indent={indent + 1} />}
-          {children?.map((c) => (
-            <PageItem
-              key={c._id}
-              id={c._id as Id<'blocks'>}
-              title={c.title}
-              indent={indent + 1}
-              scope={scope}
-              teamId={teamId}
-              handleAddPage={handleAddPage}
-            />
-          ))}
-        </div>
-      </Show>
+      <Children id={id} indent={indent} scope={scope} teamId={teamId} handleAddPage={handleAddPage} open$={open$} />
     </>
   );
 });
-
-const Test = () => {
-  return (
-    <DropdownMenu modal={true}>
-      <DropdownMenuTrigger>Open</DropdownMenuTrigger>
-      <DropdownMenuContent>
-        <DropdownMenuLabel>My Account</DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem>Profile</DropdownMenuItem>
-        <DropdownMenuItem>Billing</DropdownMenuItem>
-        <DropdownMenuItem>Team</DropdownMenuItem>
-        <DropdownMenuItem>Subscription</DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-};

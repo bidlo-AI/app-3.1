@@ -62,20 +62,21 @@ export const SidebarWrapper = ({ startingWidth, children }: { startingWidth?: nu
 
   return (
     <div className="hidden md:flex">
-      <div className={isHidden ? 'fixed inset-y-0 left-0 z-40 group/sidebar' : 'relative h-screen group/sidebar'}>
+      <div className={isHidden ? 'fixed inset-y-0 left-0 z-10 group/sidebar' : 'relative h-screen group/sidebar'}>
         <Show if={sidebar$.sidebar_hidden}>
           <div className="absolute inset-y-0 left-0 w-3 " aria-hidden onMouseEnter={() => sidebar$.openOverlay()} />
         </Show>
+
         <div
           className={cn(
             'flex transition-all duration-200 ease-in-out',
             isHidden
-              ? `absolute inset-y-0 left-0 pr-2 pt-10 pb-2 pointer-events-none ${overlayOpen ? 'translate-x-0' : '-translate-x-full'} group-hover/sidebar:translate-x-0`
+              ? `absolute inset-y-0 left-0 pr-2 pt-10 pb-2 ${overlayOpen ? 'translate-x-0' : '-translate-x-full'} group-hover/sidebar:translate-x-0`
               : 'py-0',
           )}
           style={{ willChange: 'transform', contain: 'paint' }}
         >
-          <div className="pointer-events-auto flex" onMouseEnter={isHidden ? () => sidebar$.openOverlay() : undefined}>
+          <div className="flex" onMouseEnter={isHidden ? () => sidebar$.openOverlay() : undefined}>
             <ResizablePanel
               side="right"
               minWidth={150}

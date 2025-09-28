@@ -36,7 +36,7 @@ export const TeamItem = memo(function TeamItem({
   //handlers
   const toggleOpen = useCallback(() => open$.set(!open$.get()), [open$]);
   const handleAdd = useCallback(() => onAddTeam(teamId), [onAddTeam, teamId]);
-  const createNewPage = useCallback(async () => {
+  const handleAddPage = useCallback(async () => {
     await createPage({
       scope: 'team',
       teamId,
@@ -91,7 +91,7 @@ export const TeamItem = memo(function TeamItem({
                   indent={1}
                   scope="team"
                   teamId={teamId}
-                  createNewPage={createNewPage}
+                  handleAddPage={handleAddPage}
                 />
               </div>
             ))}
