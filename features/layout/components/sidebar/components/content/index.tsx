@@ -21,7 +21,7 @@ export const SidebarContent = ({
   preloadedUser: Preloaded<typeof api.users.getUser>;
   accessToken: string;
 }) => (
-  <div className="grid h-full grid-rows-[auto_auto_1fr]">
+  <>
     <Header preloadedUser={preloadedUser} />
     <div className="flex flex-col px-2 pb-5 gap-5 overflow-y-auto">
       <div className="flex flex-col gap-1">
@@ -31,7 +31,7 @@ export const SidebarContent = ({
       </div>
       <Footer />
     </div>
-  </div>
+  </>
 );
 
 //------------------------------------------

@@ -34,7 +34,9 @@ export const AddIconButton = ({
           <Plus className="size-4" />
         </Button>
       </TooltipTrigger>
-      <TooltipContent side="bottom">{tooltipText}</TooltipContent>
+      <TooltipContent side="bottom" sideOffset={6}>
+        {tooltipText}
+      </TooltipContent>
     </Tooltip>
   );
 };

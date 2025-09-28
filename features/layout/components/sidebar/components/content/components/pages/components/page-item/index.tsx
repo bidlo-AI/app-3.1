@@ -13,6 +13,14 @@ import { PageMoreContent } from './components/more-content';
 import { PageIcon } from './components/icon';
 import { AddIconButton } from '../buttons/add-icon-button';
 import { EmptyStateRow } from '../empty-state-row';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 /**
  * PageItem
@@ -25,14 +33,14 @@ export const PageItem = memo(function PageItem({
   indent,
   scope,
   teamId,
-  createNewPage,
+  handleAddPage,
 }: {
   id: Id<'blocks'>;
   title: string;
   indent: number;
   scope: 'private' | 'team';
   teamId?: Id<'teams'>;
-  createNewPage: (args: {
+  handleAddPage: (args: {
     scope: 'private' | 'team';
     teamId?: Id<'teams'>;
     parentId?: Id<'blocks'>;
@@ -47,12 +55,12 @@ export const PageItem = memo(function PageItem({
   const children = useQuery(api.blocks.listChildren, isOpen && id ? { parentId: id } : 'skip');
 
   const handleAddChild = useCallback(() => {
-    void createNewPage({
+    void handleAddPage({
       scope,
       teamId: scope === 'team' ? (teamId as Id<'teams'>) : undefined,
       parentId: id,
     });
-  }, [createNewPage, id, scope, teamId]);
+  }, [handleAddPage, id, scope, teamId]);
 
   const indentStyle = useMemo(() => ({ padding: '0 8px', paddingLeft: 8 + indent * 8 }), [indent]);
 
@@ -60,38 +68,44 @@ export const PageItem = memo(function PageItem({
     <>
       <div
         className={cn(
-          'cursor-pointer group/list-row flex items-center h-7.5 rounded-md hover:bg-hover pr-2 gap-0.5',
+          'cursor-pointer group/list-row flex items-center h-7.5 rounded-md hover:bg-hover pr-2 gap-0.5 relative',
           isSelected && 'bg-hover',
         )}
       >
+        {/* Link to the page */}
         <Link href={`/${id}`} prefetch={false} aria-label={title} className="flex-1 min-w-0">
           <div
             role="button"
-            onClick={() => open$.set(!open$.get())}
             className="flex items-center gap-2 min-w-0 pl-2 justify-start font-medium text-muted-foreground-opaque truncate"
             style={indentStyle}
           >
             <PageIcon open$={open$} />
-            <span className={cn('', isSelected && 'text-foreground')}>{title}</span>
+            <div className={cn(`truncate`, isSelected && 'text-foreground')}>{title}</div>
           </div>
         </Link>
-        <MoreMenu
-          aria-label="More options"
-          tooltip="Delete, duplicate, and more..."
-          className="rounded text-muted-foreground-opaque opacity-0 size-5 group-hover/list-row:opacity-100 focus:opacity-100"
-        >
-          <PageMoreContent title={title} />
-        </MoreMenu>
-        <AddIconButton
-          ariaLabel="Add subpage"
-          tooltipText="Add subpage"
-          className="size-7 opacity-0 group-hover/list-row:opacity-100 focus:opacity-100"
-          onClick={handleAddChild}
-        />
+
+        {/* More menu and add icon button */}
+        <div className="absolute right-0 w-0 overflow-hidden group-hover/list-row:w-fit group-hover/list-row:relative flex">
+          <MoreMenu
+            aria-label="More options"
+            tooltip="Delete, duplicate, and more..."
+            className="rounded text-muted-foreground-opaque opacity-0 size-5 group-hover/list-row:opacity-100 focus:opacity-100"
+          >
+            <PageMoreContent title={title} />
+          </MoreMenu>
+          <AddIconButton
+            ariaLabel="Add subpage"
+            tooltipText="Add a page inside"
+            className="size-7 opacity-0 group-hover/list-row:opacity-100 focus:opacity-100"
+            onClick={handleAddChild}
+          />
+        </div>
+        <Test />
       </div>
 
+      {/* Child pages */}
       <Show if={open$}>
-        <div>
+        <div className="flex flex-col gap-px">
           {Array.isArray(children) && children.length === 0 && <EmptyStateRow indent={indent + 1} />}
           {children?.map((c) => (
             <PageItem
@@ -101,7 +115,7 @@ export const PageItem = memo(function PageItem({
               indent={indent + 1}
               scope={scope}
               teamId={teamId}
-              createNewPage={createNewPage}
+              handleAddPage={handleAddPage}
             />
           ))}
         </div>
@@ -109,3 +123,19 @@ export const PageItem = memo(function PageItem({
     </>
   );
 });
+
+const Test = () => {
+  return (
+    <DropdownMenu modal={true}>
+      <DropdownMenuTrigger>Open</DropdownMenuTrigger>
+      <DropdownMenuContent>
+        <DropdownMenuLabel>My Account</DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem>Profile</DropdownMenuItem>
+        <DropdownMenuItem>Billing</DropdownMenuItem>
+        <DropdownMenuItem>Team</DropdownMenuItem>
+        <DropdownMenuItem>Subscription</DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+};

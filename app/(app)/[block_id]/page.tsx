@@ -6,6 +6,14 @@ import { preloadQuery, preloadedQueryResult } from 'convex/nextjs';
 import { api } from '@/convex/_generated/api';
 import type { Id } from '@/convex/_generated/dataModel';
 import Link from 'next/link';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 export default async function BlockPage({ params }: { params: Promise<{ block_id: string }> }) {
   const { block_id } = await params;
@@ -31,6 +39,8 @@ export default async function BlockPage({ params }: { params: Promise<{ block_id
 
       {/* Content */}
       <div className="content">
+        <Test />
+
         <div className="flex size-full flex-col justify-start p-4 gap-4">
           <div>
             <div className="text-base font-semibold">{data.block.title}</div>
@@ -70,6 +80,22 @@ export default async function BlockPage({ params }: { params: Promise<{ block_id
     </>
   );
 }
+
+const Test = () => {
+  return (
+    <DropdownMenu modal={true}>
+      <DropdownMenuTrigger>Open</DropdownMenuTrigger>
+      <DropdownMenuContent>
+        <DropdownMenuLabel>My Account</DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem>Profile</DropdownMenuItem>
+        <DropdownMenuItem>Billing</DropdownMenuItem>
+        <DropdownMenuItem>Team</DropdownMenuItem>
+        <DropdownMenuItem>Subscription</DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+};
 
 // const Chat = ({ block_id }: { block_id: string }) => {
 //   return (

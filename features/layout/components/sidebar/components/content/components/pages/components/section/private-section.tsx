@@ -63,7 +63,7 @@ export const PrivateSection = ({
               title={p.title}
               indent={0}
               scope="private"
-              createNewPage={handleAddPage}
+              handleAddPage={handleAddPage}
             />
           ))}
         </div>
