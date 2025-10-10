@@ -5,13 +5,15 @@ import { Fades } from './compoents/fades';
 import { useEffect, useRef } from 'react';
 import { useMutation } from 'convex/react';
 import { api } from '@/convex/_generated/api';
-import { IconGrid } from './compoents/IconGrid';
-import { Header } from './compoents/inconHeader';
+import { IconGrid } from './compoents/icon-grid';
+import { Header, type Hue } from './compoents/incon-header';
 import { useMount } from '@legendapp/state/react';
 import dynamicIconImports from 'lucide-react/dynamicIconImports';
-import { Memo, Show, use$, useObservable } from '@legendapp/state/react';
+import { Show, use$, useObservable } from '@legendapp/state/react';
 import { Command, CommandList, CommandGroup } from '@/components/ui/command';
 import { ALL_ICONS, ICON_LOOKUP, normalizeForSearch, normalizeKey } from './lib';
+import { Empty } from './compoents/empty';
+import { cn } from '@/lib/utils';
 
 import type { Observable } from '@legendapp/state';
 import type { IconMeta, BlockIcon } from './types';
@@ -48,6 +50,8 @@ export function IconsTab({
     showIcons: () => state$.iconsToShow.get().length > 0,
     showAll: () => state$.showIcons.get() && state$.showRecent.get(),
     noResults: () => state$.filteredAll.get().length === 0,
+    // UI state for preview hue
+    color: 'default' as Hue,
     iconsToShow: () =>
       state$.filteredAll
         .get()
@@ -138,14 +142,15 @@ export function IconsTab({
 
   // Keep load-more debounce state in a ref to avoid mutating DOM
   const lastLoadMoreAtRef = useRef(0);
-  const filteredRecent = use$(() => state$.filteredRecent.get());
-  const iconsToShow = use$(() => state$.iconsToShow.get());
+  const filteredRecent = use$(state$.filteredRecent);
+  const iconsToShow = use$(state$.iconsToShow);
+  const color = use$(state$.color);
 
   return (
     <div className="">
       <Command shouldFilter={false}>
-        <Header search$={search$} onRandom={handleRandom} />
-        <div className="relative pt-1 pb-2">
+        <Header search$={search$} onRandom={handleRandom} color$={state$.color} />
+        <div className={cn('relative pt-1 pb-2', color === 'default' ? 'text-foreground' : `text-${color}`)}>
           <CommandList
             onScroll={(e) => {
               const t = e.currentTarget;
@@ -160,22 +165,14 @@ export function IconsTab({
               }
             }}
           >
-            <Show if={state$.noResults}>
-              <div className="py-6 text-center text-sm text-muted-foreground">
-                No results for{' '}
-                <span className="text-foreground">
-                  <Memo>{search$}</Memo>
-                </span>
-                .
-              </div>
-            </Show>
+            <Empty show$={state$.noResults} search$={search$} />
             <Show if={state$.showRecent}>
-              <CommandGroup heading="Recent">
+              <CommandGroup heading="Recent" className="text-inherit">
                 <IconGrid items={filteredRecent} onSelect={handleSelect} />
               </CommandGroup>
             </Show>
             <Show if={state$.showIcons}>
-              <CommandGroup heading="Icons">
+              <CommandGroup heading="Icons" className="text-inherit">
                 <IconGrid items={iconsToShow} onSelect={handleSelect} />
               </CommandGroup>
             </Show>

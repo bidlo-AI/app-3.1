@@ -1,6 +1,6 @@
 'use client';
 
-import { LazyIcon } from './LazyIcon';
+import { LazyIcon } from './lazy-icon';
 // import { For, use$ } from '@legendapp/state/react';
 
 type IconGridProps = {
@@ -15,7 +15,7 @@ export function IconGrid({ items, onSelect }: IconGridProps) {
       {items.map((kebab) => (
         <button
           key={kebab}
-          className="hover:bg-hover text-foreground flex size-8 items-center justify-center rounded p-1 cursor-pointer"
+          className="hover:bg-hover flex size-8 items-center justify-center rounded p-1 cursor-pointer"
           onClick={() => onSelect(kebab)}
           title={kebab}
         >

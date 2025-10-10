@@ -35,6 +35,7 @@ export function LazyIcon({ kebab }: { kebab: string }) {
     <span ref={ref} className="size-5">
       {IconComp ? (
         <Suspense fallback={null}>
+          {/* Apply text color to stroke via CSS vars-backed utility classes */}
           <IconComp className="size-5" />
         </Suspense>
       ) : null}
