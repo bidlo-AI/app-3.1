@@ -39,7 +39,7 @@ export function Icon({
       <img
         src={src}
         alt={alt ?? icon.shortcode ?? 'emoji'}
-        className={cn('size-5 select-none', className)}
+        className={cn('p-px select-none', className)}
         draggable={false}
       />
     );

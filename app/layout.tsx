@@ -15,7 +15,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang="en" suppressHydrationWarning>
       <body className="antialiased flex min-h-screen text-sm">
-        <ConvexClientProvider expectAuth>
+        <ConvexClientProvider>
           <ThemeProvider attribute="class" defaultTheme="system" enableSystem={false}>
             <NuqsAdapter>
               {children}

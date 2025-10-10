@@ -11,6 +11,8 @@ import { Home } from './components/home';
 import { Data } from './components/data';
 import { Settings } from './components/settings';
 import { Pages } from './components/pages';
+import { Apps } from './components/apps';
+import { Automations } from './components/automations';
 
 // Mobile and desktop sidebar content.
 // Kept as a client component so it can render inside the mobile Sheet.
@@ -48,8 +50,10 @@ const Header = ({ preloadedUser }: { preloadedUser: Preloaded<typeof api.users.g
 );
 
 const Footer = () => (
-  <div className="flex flex-col gap-1">
+  <div className="flex flex-col gap-px">
     <Data />
+    <Apps />
+    <Automations />
     <Settings />
   </div>
 );

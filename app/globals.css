@@ -641,7 +641,7 @@
   /* ----------------------------------------------------------- */
 
   * {
-    scrollbar-width: thin;
+    scrollbar-width: 8px;
     scrollbar-color: rgba(0, 0, 0, 0.15) transparent;
   }
 
