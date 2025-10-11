@@ -85,28 +85,18 @@ const withSkinToneUnified = (emoji: EmojiData, skinTone: string | 'neutral') => 
   return found || emoji.u;
 };
 
-const emojiImageUrl = (unified: string) => `https://cdn.jsdelivr.net/gh/twitter/twemoji/assets/72x72/${unified}.png`;
-
-// Lazy image to avoid loading offscreen emoji assets
-function LazyEmoji({ unified, alt }: { unified: string; alt: string }) {
-  const ref = useRef<HTMLImageElement | null>(null);
-  const [src, setSrc] = React.useState<string | null>(null);
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const io = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setSrc(emojiImageUrl(unified));
-          io.disconnect();
-        }
-      },
-      { rootMargin: '200px' },
-    );
-    io.observe(el);
-    return () => io.disconnect();
-  }, [unified]);
-  return <img ref={ref} src={src ?? undefined} alt={alt} className="size-5" draggable={false} />;
+// Native-emoji renderer: renders the Unicode glyph directly for fast, no-network display
+function NativeEmoji({ unified, label }: { unified: string; label: string }) {
+  const char = fromUnified(unified);
+  return (
+    <span
+      aria-label={label}
+      className="size-5 text-2xl leading-none select-none flex items-center justify-center"
+      draggable={false}
+    >
+      {char}
+    </span>
+  );
 }
 
 // Skin tone selector
@@ -122,12 +112,11 @@ const SKIN_TONES: Array<{ key: SkinToneKey; label: string }> = [
 function SkinToneSelector({ value, onChange }: { value: SkinToneKey; onChange: (v: SkinToneKey) => void }) {
   // A small glyph preview for the current skin tone using 👍
   const unified = value === 'neutral' ? '1f44d' : `1f44d-${value}`;
-  const previewUrl = emojiImageUrl(unified);
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button aria-label="Choose skin tone" variant="outline" size="icon">
-          <img src={previewUrl} alt="tone" className="size-3 rounded" />
+          <span className="text-[12px] leading-none select-none">{fromUnified(unified)}</span>
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start">
@@ -362,7 +351,7 @@ function EmojiGrid({ items, onSelect }: { items: string[]; onSelect: (unified: s
           onClick={() => onSelect(unified)}
           title={fromUnified(unified)}
         >
-          <LazyEmoji unified={unified} alt="emoji" />
+          <NativeEmoji unified={unified} label="emoji" />
         </button>
       ))}
     </div>
