@@ -3,7 +3,6 @@ import * as Lucide from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import type { Id, Doc } from '@/convex/_generated/dataModel';
 import { cn } from '@/lib/utils';
-import { toTwemojiUrl } from '@/lib/twemoji';
 
 type BlockIcon = Doc<'blocks'>['icon'];
 
@@ -34,14 +33,16 @@ export function Icon({
   }
 
   if (icon.kind === 'emoji') {
-    const src = toTwemojiUrl(icon.emoji);
+    // Render native Unicode glyph for performance (no network, no layout shift)
     return (
-      <img
-        src={src}
-        alt={alt ?? icon.shortcode ?? 'emoji'}
-        className={cn('p-px select-none', className)}
+      <span
+        role="img"
+        aria-label={alt ?? icon.shortcode ?? 'emoji'}
+        className={cn('size-5 grid place-items-center select-none [container-type:size]', className)}
         draggable={false}
-      />
+      >
+        <span className="leading-none text-[100cqmin]">{icon.emoji}</span>
+      </span>
     );
   }
 

@@ -17,7 +17,11 @@ export default function Page({ preloaded }: { preloaded: Preloaded<typeof api.bl
         {/* Block icon above the title. If none, show an add icon button instead. */}
         <IconSelector blockId={data.block._id}>
           {data.block.icon ? (
-            <Icon icon={data.block.icon} title={data.block.title} className="size-8 mb-2" />
+            <Icon
+              icon={data.block.icon}
+              title={data.block.title}
+              className="size-[78px] mb-2 rounded-md hover:bg-hover"
+            />
           ) : (
             <Button variant="ghost" size="xs" className="mb-2">
               <Plus />
