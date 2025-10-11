@@ -7,13 +7,7 @@ import { useMutation } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import { Button } from '@/components/ui/button';
 import { Command, CommandList, CommandGroup } from '@/components/ui/command';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { ArrowRightLeft } from 'lucide-react';
 import { toast } from 'sonner';
@@ -91,7 +85,7 @@ function NativeEmoji({ unified, label }: { unified: string; label: string }) {
   return (
     <span
       aria-label={label}
-      className="size-5 text-2xl leading-none select-none flex items-center justify-center"
+      className="size-5 text-[26px] leading-none select-none flex items-center justify-center"
       draggable={false}
     >
       {char}
@@ -110,25 +104,45 @@ const SKIN_TONES: Array<{ key: SkinToneKey; label: string }> = [
 ];
 
 function SkinToneSelector({ value, onChange }: { value: SkinToneKey; onChange: (v: SkinToneKey) => void }) {
-  // A small glyph preview for the current skin tone using 👍
-  const unified = value === 'neutral' ? '1f44d' : `1f44d-${value}`;
+  // Right-hand glyph preview (👉) for the trigger reflects the current skin tone
+  const [open, setOpen] = React.useState(false);
+  const unified = value === 'neutral' ? '270B' : `270B-${value}`;
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button aria-label="Choose skin tone" variant="outline" size="icon">
-          <span className="text-[12px] leading-none select-none">{fromUnified(unified)}</span>
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="start">
-        <DropdownMenuRadioGroup value={value} onValueChange={(v) => onChange(v as SkinToneKey)}>
-          {SKIN_TONES.map((t) => (
-            <DropdownMenuRadioItem key={t.key} value={t.key}>
-              {t.label}
-            </DropdownMenuRadioItem>
-          ))}
-        </DropdownMenuRadioGroup>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <Popover open={open} onOpenChange={setOpen}>
+      {/* Tooltip wraps only the trigger to avoid hover conflicts with popover content */}
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <PopoverTrigger asChild>
+            <Button aria-label="Choose skin tone" variant="outline" size="icon">
+              <span className="text-xl leading-none select-none">{fromUnified(unified)}</span>
+            </Button>
+          </PopoverTrigger>
+        </TooltipTrigger>
+        <TooltipContent side="bottom">Select skin tone</TooltipContent>
+      </Tooltip>
+      <PopoverContent align="start" className="w-auto">
+        {/* Row of right-hand emojis in each skin tone */}
+        <div className="flex items-center gap-1 p-1">
+          {SKIN_TONES.map((t) => {
+            const u = t.key === 'neutral' ? '270B' : `270B-${t.key}`;
+            return (
+              <button
+                key={t.key}
+                type="button"
+                aria-label={t.label}
+                className="hover:bg-hover flex size-7 items-center justify-center rounded cursor-pointer"
+                onClick={() => {
+                  onChange(t.key);
+                  setOpen(false);
+                }}
+              >
+                <span className="text-xl leading-none select-none">{fromUnified(u)}</span>
+              </button>
+            );
+          })}
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 }
 
@@ -282,6 +296,7 @@ export function EmojiTab({
   const lastLoadMoreAtRef = useRef(0);
   const filteredRecent = use$(state$.filteredRecent);
   const skinTone = use$(state$.skinTone);
+  // No tooltip wrapper here; SkinToneSelector handles its own tooltip on the trigger only
 
   return (
     <div className="">
@@ -296,14 +311,9 @@ export function EmojiTab({
             </TooltipTrigger>
             <TooltipContent side="bottom">Random</TooltipContent>
           </Tooltip>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <div>
-                <SkinToneSelector value={skinTone} onChange={handleToneChange} />
-              </div>
-            </TooltipTrigger>
-            <TooltipContent side="bottom">Select skin tone</TooltipContent>
-          </Tooltip>
+          <div>
+            <SkinToneSelector value={skinTone} onChange={handleToneChange} />
+          </div>
         </div>
         <div className={cn('relative pt-1 pb-2')}>
           <CommandList

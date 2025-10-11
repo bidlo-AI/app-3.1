@@ -12,6 +12,9 @@ import UploadTab from './components/UploadTab';
 import { Switch, use$, useObservable } from '@legendapp/state/react';
 import { Observable } from '@legendapp/state';
 import { uiState$ } from '@/features/layout/providers/ui-state';
+import { useMutation } from 'convex/react';
+import { api } from '@/convex/_generated/api';
+import { toast } from 'sonner';
 
 type BlockIcon = Doc<'blocks'>['icon'];
 type Tab = 'emoji' | 'icons' | 'upload';
@@ -52,12 +55,24 @@ const Content = ({
   onClear?: () => void;
   close: () => void;
 }) => {
+  const clearIcon = useMutation(api.icons.clearPageIcon);
   const search$ = useObservable('');
 
   //handlers
   async function handleClear() {
-    // Delegate clearing to parent when not tied to a block id. Parent can call mutation.
-    onClear?.();
+    // Clear in DB when tied to a block; otherwise delegate to parent for local state.
+    try {
+      if (blockId) {
+        await clearIcon({ blockId });
+        toast.success('Icon removed');
+      } else {
+        onClear?.();
+      }
+      search$.set('');
+      close();
+    } catch {
+      toast.error('Failed to remove icon');
+    }
   }
 
   return (
