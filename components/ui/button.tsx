@@ -4,6 +4,8 @@ import { cva, type VariantProps } from 'class-variance-authority';
 
 import { cn } from '@/lib/utils';
 
+const ghostClasses = 'hover:bg-accent hover:text-accent-foreground hover:bg-hover';
+
 const buttonVariants = cva(
   " focus-within:ring-2 focus-within:ring-primary inline-flex items-center cursor-pointer justify-center text-sm gap-2 whitespace-nowrap rounded-md font-medium  disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none  aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive",
   {
@@ -13,7 +15,8 @@ const buttonVariants = cva(
         destructive: 'bg-destructive text-white shadow-xs hover:bg-destructive/90 dark:bg-destructive/60',
         outline: 'border shadow-xs hover:bg-accent hover:text-accent-foreground hover:bg-hover',
         secondary: 'bg-hover text-foreground shadow-xs hover:bg-foreground/10 hover:text-foreground',
-        ghost: 'hover:bg-accent hover:text-accent-foreground hover:bg-hover',
+        ghost: ghostClasses,
+        ghost_muted: ghostClasses + ' text-muted-foreground-opaque hover:text-muted-foreground',
         link: 'text-primary underline-offset-4 hover:underline',
       },
       size: {

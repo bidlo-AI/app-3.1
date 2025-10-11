@@ -1,11 +1,19 @@
 import { Button } from '@/components/ui/button';
 import { Smile } from 'lucide-react';
+import { Show } from '@legendapp/state/react';
+import { Observable } from '@legendapp/state';
+import type { Doc } from '@/convex/_generated/dataModel';
 
-export const AddIcon = () => {
+// Local alias for the blocks.icon type from Convex schema
+type BlockIcon = Doc<'blocks'>['icon'];
+
+export const AddIcon = ({ icon }: { icon: Observable<BlockIcon> }) => {
   return (
-    <Button variant="ghost" size="xs" className="text-muted-foreground-opaque">
-      <Smile className="size-4" />
-      AddIcon
-    </Button>
+    <Show if={() => !icon.get()}>
+      <Button variant="ghost_muted" size="xs">
+        <Smile className="size-4" />
+        AddIcon
+      </Button>
+    </Show>
   );
 };
