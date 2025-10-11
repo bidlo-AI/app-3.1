@@ -17,7 +17,7 @@ import { cn } from '@/lib/utils';
 import { uiState$ } from '@/features/layout/providers/ui-state';
 
 import type { Observable } from '@legendapp/state';
-import type { IconMeta, BlockIcon } from './types';
+import type { IconMeta } from './types';
 import type { Id } from '@/convex/_generated/dataModel';
 
 const RECENT_ICONS_KEY = 'icons:recent';
@@ -30,12 +30,10 @@ const SCROLL_THRESHOLD_PX = 16; // distance from bottom to trigger load-more
 
 export function IconsTab({
   blockId,
-  onSelected,
   close,
   search$,
 }: {
   blockId?: Id<'blocks'>;
-  onSelected?: (icon: BlockIcon) => void;
   close: () => void;
   search$: Observable<string>;
 }) {
@@ -116,12 +114,8 @@ export function IconsTab({
     try {
       handleRecordRecent(key);
       if (blockId) {
-        const hue = uiState$.iconPicker.iconColor.get();
-        await setPreset({ blockId, key, style: 'line', color: hue });
-        toast.success('Icon updated');
-      } else {
-        const hue = uiState$.iconPicker.iconColor.get();
-        onSelected?.({ kind: 'preset', key, style: 'line', color: hue });
+        const c = uiState$.iconPicker.iconColor.get();
+        setPreset({ blockId, key, style: 'line', color: c });
       }
       close();
       search$.set('');

@@ -28,12 +28,9 @@ export function Icon({
   resolveFileUrl?: (fileId: Id<'files'>) => string | undefined;
 }) {
   // Fallback monogram when no icon is set
-  if (!icon) {
-    return <Monogram title={title} className={className} />;
-  }
+  if (!icon) return <Monogram title={title} className={className} />;
 
-  if (icon.kind === 'emoji') {
-    // Render native Unicode glyph for performance (no network, no layout shift)
+  if (icon.kind === 'emoji')
     return (
       <span
         role="img"
@@ -44,7 +41,6 @@ export function Icon({
         <span className="leading-none text-[100cqmin]">{icon.emoji}</span>
       </span>
     );
-  }
 
   if (icon.kind === 'preset') {
     const Comp = resolveLucide(icon.key) ?? Lucide.CircleDashed;
@@ -57,7 +53,7 @@ export function Icon({
     return (
       <Comp
         aria-label={alt ?? icon.key}
-        className={cn('h-5 w-5', hueClass, className)}
+        className={cn('size-5 p-[5%]', hueClass, className)}
         strokeWidth={strokeWidth}
         fill={fill}
       />

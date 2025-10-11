@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { useEffect, useRef } from 'react';
-import type { Id, Doc } from '@/convex/_generated/dataModel';
+import type { Id } from '@/convex/_generated/dataModel';
 import { useMutation } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import { Button } from '@/components/ui/button';
@@ -21,8 +21,6 @@ import { cn } from '@/lib/utils';
 // Minimal fields used: names (n), unified (u), variations (v)
 // Importing JSON directly avoids pulling in the whole picker UI.
 // Note: We'll lazy-load the JSON on mount for performance (see useMount below).
-
-type BlockIcon = Doc<'blocks'>['icon'];
 
 // --------------------------------
 // Constants
@@ -148,12 +146,10 @@ function SkinToneSelector({ value, onChange }: { value: SkinToneKey; onChange: (
 
 export function EmojiTab({
   blockId,
-  onSelected,
   close,
   search$,
 }: {
   blockId?: Id<'blocks'>;
-  onSelected?: (icon: BlockIcon) => void;
   close: () => void;
   search$: Observable<string>;
 }) {
@@ -265,12 +261,7 @@ export function EmojiTab({
     try {
       handleRecordRecent(unified);
       const emojiStr = fromUnified(unified);
-      if (blockId) {
-        await setEmoji({ blockId, emoji: emojiStr });
-        toast.success('Icon updated');
-      } else {
-        onSelected?.({ kind: 'emoji', emoji: emojiStr });
-      }
+      if (blockId) setEmoji({ blockId, emoji: emojiStr });
       close();
       search$.set('');
     } catch {

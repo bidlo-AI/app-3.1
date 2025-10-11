@@ -32,7 +32,7 @@ export default async function BlockPage({ params }: { params: Promise<{ block_id
 
       {/* Content */}
       <div className="content">
-        <div className="flex size-full flex-col justify-start p-4 gap-4">
+        <div className="flex size-full flex-col justify-start gap-4">
           <Page preloaded={preloaded} />
           {/* Renders counter for debugging rerenders and state updates */}
           {/* <RendersCounter /> */}

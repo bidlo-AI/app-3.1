@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import type { Id, Doc } from '@/convex/_generated/dataModel';
+import type { Id } from '@/convex/_generated/dataModel';
 
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverTrigger, PopoverContent, PopoverGroup, PopoverSeparator } from '@/components/ui/popover';
@@ -16,20 +16,15 @@ import { useMutation } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import { toast } from 'sonner';
 
-type BlockIcon = Doc<'blocks'>['icon'];
 type Tab = 'emoji' | 'icons' | 'upload';
 
 export function IconSelector({
   children,
   blockId,
-  onSelected,
-  onClear,
   className,
 }: {
   children: React.ReactNode;
   blockId?: Id<'blocks'>;
-  onSelected?: (icon: BlockIcon) => void;
-  onClear?: () => void;
   className?: string;
 }) {
   const [open, setOpen] = React.useState(false);
@@ -39,22 +34,12 @@ export function IconSelector({
       <PopoverTrigger asChild>
         <div className={cn('inline-flex cursor-pointer', className)}>{children}</div>
       </PopoverTrigger>
-      <Content blockId={blockId} onSelected={onSelected} onClear={onClear} close={() => setOpen(false)} />
+      <Content blockId={blockId} close={() => setOpen(false)} />
     </Popover>
   );
 }
 
-const Content = ({
-  blockId,
-  onSelected,
-  onClear,
-  close,
-}: {
-  blockId?: Id<'blocks'>;
-  onSelected?: (icon: BlockIcon) => void;
-  onClear?: () => void;
-  close: () => void;
-}) => {
+const Content = ({ blockId, close }: { blockId?: Id<'blocks'>; close: () => void }) => {
   const clearIcon = useMutation(api.icons.clearPageIcon);
   const search$ = useObservable('');
 
@@ -62,12 +47,7 @@ const Content = ({
   async function handleClear() {
     // Clear in DB when tied to a block; otherwise delegate to parent for local state.
     try {
-      if (blockId) {
-        await clearIcon({ blockId });
-        toast.success('Icon removed');
-      } else {
-        onClear?.();
-      }
+      if (blockId) clearIcon({ blockId });
       search$.set('');
       close();
     } catch {
@@ -92,8 +72,8 @@ const Content = ({
       <PopoverSeparator />
       <Switch value={uiState$.iconPicker.tab}>
         {{
-          emoji: () => <EmojiTab blockId={blockId} search$={search$} onSelected={onSelected} close={close} />,
-          icons: () => <IconsTab blockId={blockId} search$={search$} onSelected={onSelected} close={close} />,
+          emoji: () => <EmojiTab blockId={blockId} search$={search$} close={close} />,
+          icons: () => <IconsTab blockId={blockId} search$={search$} close={close} />,
           upload: () => <UploadTab blockId={blockId} onDone={close} />,
         }}
       </Switch>
