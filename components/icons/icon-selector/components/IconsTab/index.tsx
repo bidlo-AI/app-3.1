@@ -14,8 +14,8 @@ import { Command, CommandList, CommandGroup } from '@/components/ui/command';
 import { ALL_ICONS, ICON_LOOKUP, normalizeForSearch, normalizeKey } from './lib';
 import { Empty } from './compoents/empty';
 import { cn } from '@/lib/utils';
+import { uiState$ } from '@/features/layout/providers/ui-state';
 
-import type { Color } from '@/types/ui';
 import type { Observable } from '@legendapp/state';
 import type { IconMeta, BlockIcon } from './types';
 import type { Id } from '@/convex/_generated/dataModel';
@@ -52,7 +52,6 @@ export function IconsTab({
     showAll: () => state$.showIcons.get() && state$.showRecent.get(),
     noResults: () => state$.filteredAll.get().length === 0,
     // UI state for preview hue
-    color: 'default' as Color,
     iconsToShow: () =>
       state$.filteredAll
         .get()
@@ -117,11 +116,11 @@ export function IconsTab({
     try {
       handleRecordRecent(key);
       if (blockId) {
-        const hue = state$.color.get();
+        const hue = uiState$.iconPicker.iconColor.get();
         await setPreset({ blockId, key, style: 'line', color: hue });
         toast.success('Icon updated');
       } else {
-        const hue = state$.color.get();
+        const hue = uiState$.iconPicker.iconColor.get();
         onSelected?.({ kind: 'preset', key, style: 'line', color: hue });
       }
       close();
@@ -147,12 +146,12 @@ export function IconsTab({
   const lastLoadMoreAtRef = useRef(0);
   const filteredRecent = use$(state$.filteredRecent);
   const iconsToShow = use$(state$.iconsToShow);
-  const color = use$(state$.color);
+  const color = use$(uiState$.iconPicker.iconColor);
 
   return (
     <div className="">
       <Command shouldFilter={false}>
-        <Header search$={search$} onRandom={handleRandom} color$={state$.color} />
+        <Header search$={search$} onRandom={handleRandom} color$={uiState$.iconPicker.iconColor} />
         <div className={cn('relative pt-1 pb-2', color === 'default' ? 'text-foreground' : `text-${color}`)}>
           <CommandList
             onScroll={(e) => {

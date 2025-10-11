@@ -7,7 +7,7 @@ import { api } from '@/convex/_generated/api';
 import type { Id } from '@/convex/_generated/dataModel';
 
 import Page from '@/features/layout/components/page';
-import { RendersCounter } from './renders-counter';
+// import { RendersCounter } from './renders-counter';
 
 export default async function BlockPage({ params }: { params: Promise<{ block_id: string }> }) {
   const { block_id } = await params;
@@ -35,7 +35,7 @@ export default async function BlockPage({ params }: { params: Promise<{ block_id
         <div className="flex size-full flex-col justify-start p-4 gap-4">
           <Page preloaded={preloaded} />
           {/* Renders counter for debugging rerenders and state updates */}
-          <RendersCounter />
+          {/* <RendersCounter /> */}
         </div>
       </div>
     </>

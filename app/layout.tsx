@@ -5,6 +5,7 @@ import { Toaster } from '@/components/ui/sonner';
 import { ConvexClientProvider } from '@/features/layout/providers/ConvexClientProvider';
 import { ThemeSubscription } from '@/features/layout/components/theme/server';
 import { NuqsAdapter } from 'nuqs/adapters/next/app';
+import { UIStateProvider } from '@/features/layout/providers/ui-state';
 
 export const metadata: Metadata = {
   title: 'Bidlo',
@@ -21,6 +22,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               {children}
               <Toaster position="top-center" />
               <ThemeSubscription />
+              <UIStateProvider />
             </NuqsAdapter>
           </ThemeProvider>
         </ConvexClientProvider>

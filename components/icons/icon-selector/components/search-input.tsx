@@ -16,6 +16,7 @@ export const SearchInput = ({ search$ }: { search$: Observable<string> }) => {
 
   return (
     <div className="relative" ref={rootRef}>
+      {/* Primary ring on focus using container's focus-within state */}
       <CommandInput
         value={value}
         onValueChange={(v) => search$.set(v)}

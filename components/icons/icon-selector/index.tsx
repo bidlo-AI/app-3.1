@@ -11,6 +11,7 @@ import IconsTab from './components/IconsTab';
 import UploadTab from './components/UploadTab';
 import { Switch, use$, useObservable } from '@legendapp/state/react';
 import { Observable } from '@legendapp/state';
+import { uiState$ } from '@/features/layout/providers/ui-state';
 
 type BlockIcon = Doc<'blocks'>['icon'];
 type Tab = 'emoji' | 'icons' | 'upload';
@@ -51,7 +52,6 @@ const Content = ({
   onClear?: () => void;
   close: () => void;
 }) => {
-  const tab$ = useObservable('emoji' as 'emoji' | 'icons' | 'upload');
   const search$ = useObservable('');
 
   //handlers
@@ -64,9 +64,9 @@ const Content = ({
     <PopoverContent className="w-96 p-0">
       <PopoverGroup>
         <div className="flex items-center p-0.5">
-          <TabButton tab$={tab$} label="emoji" />
-          <TabButton tab$={tab$} label="icons" />
-          <TabButton tab$={tab$} label="upload" />
+          <TabButton tab$={uiState$.iconPicker.tab} label="emoji" />
+          <TabButton tab$={uiState$.iconPicker.tab} label="icons" />
+          <TabButton tab$={uiState$.iconPicker.tab} label="upload" />
           <div className="ml-auto">
             <Button variant="ghost" size="xs" onClick={handleClear} className="text-muted-foreground">
               Remove
@@ -75,7 +75,7 @@ const Content = ({
         </div>
       </PopoverGroup>
       <PopoverSeparator />
-      <Switch value={tab$}>
+      <Switch value={uiState$.iconPicker.tab}>
         {{
           emoji: () => <EmojiTab blockId={blockId} search$={search$} onSelected={onSelected} close={close} />,
           icons: () => <IconsTab blockId={blockId} search$={search$} onSelected={onSelected} close={close} />,

@@ -5,6 +5,7 @@ import { Observable } from '@legendapp/state';
 import { use$ } from '@legendapp/state/react';
 import { ColorSelector } from '@/components/icons/icon-selector/components/IconsTab/compoents/color-selector';
 import type { Color } from '@/types/ui';
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 
 export const Header = ({
   search$,
@@ -23,14 +24,24 @@ export const Header = ({
   return (
     <div className="grid grid-cols-[1fr_auto_auto] gap-2 px-1.5 pb-1 pt-2">
       <SearchInput search$={search$} />
-      <Button aria-label="Random icon" variant="outline" size="icon" onClick={onRandom}>
-        <ArrowRightLeft className="size-4" />
-      </Button>
-      <ColorSelector value={current} onChange={(c) => color$.set(c)} align="start">
-        <Button aria-label="Choose color" variant="outline" size="icon">
-          <div className="size-3 rounded-full" style={triggerStyle} />
-        </Button>
-      </ColorSelector>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button aria-label="Random icon" variant="outline" size="icon" onClick={onRandom}>
+            <ArrowRightLeft className="size-4" />
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent side="bottom">Random</TooltipContent>
+      </Tooltip>
+      <Tooltip>
+        <ColorSelector value={current} onChange={(c) => color$.set(c)} align="start">
+          <TooltipTrigger asChild>
+            <Button aria-label="Choose color" variant="outline" size="icon">
+              <div className="size-3 rounded-full" style={triggerStyle} />
+            </Button>
+          </TooltipTrigger>
+        </ColorSelector>
+        <TooltipContent side="bottom">Select icon color</TooltipContent>
+      </Tooltip>
     </div>
   );
 };
