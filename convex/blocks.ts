@@ -2,6 +2,7 @@ import { mutation, query } from './_generated/server';
 import { v } from 'convex/values';
 import type { Doc, Id } from './_generated/dataModel';
 import { getCurrentUserDoc, getSessionInfo } from './helpers';
+import { blockIdValidator, scopePrivateTeamValidator, teamIdValidator } from './validators';
 
 // --------------------------------
 // QUERIES
@@ -12,7 +13,7 @@ import { getCurrentUserDoc, getSessionInfo } from './helpers';
 
 // Fetch a block and its immediate children with basic permission checks
 export const getBlock = query({
-  args: { blockId: v.id('blocks') },
+  args: { blockId: blockIdValidator },
   handler: async (ctx, args) => {
     const block = await ctx.db.get(args.blockId);
     if (!block) throw new Error('Block not found');
@@ -150,7 +151,7 @@ export const listTeamPagesForUser = query({
 
 // List child pages for a given parent block (permission based on parent)
 export const listChildren = query({
-  args: { parentId: v.id('blocks') },
+  args: { parentId: blockIdValidator },
   handler: async (ctx, args) => {
     const parent = await ctx.db.get(args.parentId);
     if (!parent) throw new Error('Parent not found');
@@ -192,10 +193,10 @@ export const listChildren = query({
 // Create a new top-level page block (private or team)
 export const createPage = mutation({
   args: {
-    scope: v.union(v.literal('private'), v.literal('team')),
-    teamId: v.optional(v.id('teams')),
+    scope: scopePrivateTeamValidator,
+    teamId: v.optional(teamIdValidator),
     title: v.optional(v.string()),
-    parentId: v.optional(v.id('blocks')),
+    parentId: v.optional(blockIdValidator),
   },
   handler: async (ctx, args) => {
     const { workos_user_id, workos_org_id } = await getSessionInfo(ctx);
@@ -274,9 +275,9 @@ export const createPage = mutation({
 // Reorder top-level pages (private or team) by assigning new position values
 export const reorderTopLevelPages = mutation({
   args: {
-    scope: v.union(v.literal('private'), v.literal('team')),
-    ids: v.array(v.id('blocks')),
-    teamId: v.optional(v.id('teams')),
+    scope: scopePrivateTeamValidator,
+    ids: v.array(blockIdValidator),
+    teamId: v.optional(teamIdValidator),
   },
   handler: async (ctx, args) => {
     const { workos_user_id, workos_org_id } = await getSessionInfo(ctx);

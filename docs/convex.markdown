@@ -2,6 +2,7 @@
 
 - **Where**:
   - Helpers: `convex/helpers.ts`
+  - Validators: `convex/validators.ts`
   - Example usage: `convex/blocks.ts`, `convex/teams.ts`
   - Sectioned layout examples: `convex/users.ts`, `convex/organizations.ts`
 
@@ -14,6 +15,62 @@
 - **getOrgByWorkOSId(ctx, workosOrgId) → Doc<'organizations'>**
   - Looks up an organization by its WorkOS id using the `by_workos_id` index.
   - Throws `Organization not found`.
+
+### Shared validators
+
+- **Where**: `convex/validators.ts`
+- **Why**: Centralize common `v.*` unions/objects and id validators used across schema and server functions to keep types consistent and reduce duplication.
+- **Key exports**:
+  - Icon: `hueValidator`, `iconStyleValidator`, `imageCropValidator`, `iconImageVariantValidator`, `iconValidator`
+  - Ids: `blockIdValidator`, `teamIdValidator`, `fileIdValidator`
+  - App enums: `scopePrivateTeamValidator`, `agentPanelPageValidator`, `sidebarSectionKeyValidator`
+  - Layout targets: `layoutWidthTargetValidator`, `layoutHiddenTargetValidator`
+  - Access/status: `permissionLevelValidator`, `shareLevelValidator`, `threadStatusValidator`, `messageRoleValidator`
+
+- **Schema usage example**:
+
+```ts
+import { defineSchema, defineTable } from 'convex/server';
+import { v } from 'convex/values';
+import { iconValidator, agentPanelPageValidator, sidebarSectionKeyValidator, teamIdValidator } from './validators';
+
+export default defineSchema({
+  users: defineTable({
+    agent_panel_page: v.optional(agentPanelPageValidator),
+    sidebar_sections_order: v.optional(v.array(sidebarSectionKeyValidator)),
+    sidebar_team_order: v.optional(v.array(teamIdValidator)),
+  }),
+  blocks: defineTable({
+    icon: v.optional(iconValidator),
+  }),
+});
+```
+
+- **Server function usage example**:
+
+```ts
+import { mutation, query } from './_generated/server';
+import { v } from 'convex/values';
+import { blockIdValidator, teamIdValidator, scopePrivateTeamValidator } from './validators';
+
+export const getBlock = query({
+  args: { blockId: blockIdValidator },
+  handler: async (ctx, args) => {
+    /* ... */
+  },
+});
+
+export const createPage = mutation({
+  args: {
+    scope: scopePrivateTeamValidator,
+    teamId: v.optional(teamIdValidator),
+    parentId: v.optional(blockIdValidator),
+  },
+  handler: async (ctx, args) => {
+    /* ... */
+  },
+});
+```
 
 ### Usage guidelines
 

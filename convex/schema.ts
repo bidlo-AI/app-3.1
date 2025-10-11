@@ -1,35 +1,21 @@
 import { defineSchema, defineTable } from 'convex/server';
 import { v } from 'convex/values';
+import {
+  hueValidator,
+  iconValidator,
+  agentPanelPageValidator,
+  sidebarSectionKeyValidator,
+  teamIdValidator,
+  permissionLevelValidator,
+  shareLevelValidator,
+  threadStatusValidator,
+  messageRoleValidator,
+} from './validators';
 
 // Notes
 // - created_by, owner_id, updated_by are all workos_user_ids (not the convex user ids)
 
-// Reusable icon validator shared across tables
-const iconValidator = v.union(
-  v.object({
-    kind: v.literal('emoji'),
-    emoji: v.string(),
-    shortcode: v.optional(v.string()),
-    version: v.optional(v.string()),
-  }),
-  v.object({
-    kind: v.literal('preset'),
-    key: v.string(),
-    style: v.optional(v.union(v.literal('line'), v.literal('solid'))),
-  }),
-  v.object({
-    kind: v.literal('image'),
-    file_id: v.id('files'),
-    crop: v.optional(
-      v.object({
-        x: v.number(),
-        y: v.number(),
-        size: v.number(),
-      }),
-    ),
-    variant: v.optional(v.union(v.literal('original'), v.literal('512'), v.literal('128'))),
-  }),
-);
+// Icon validator shared across tables
 
 export default defineSchema({
   users: defineTable({
@@ -39,29 +25,16 @@ export default defineSchema({
     last_name: v.optional(v.string()),
     profile_picture: v.optional(v.string()),
     theme: v.union(v.literal('light'), v.literal('dark')),
-    color: v.union(
-      v.literal('gray'),
-      v.literal('blue'),
-      v.literal('green'),
-      v.literal('yellow'),
-      v.literal('orange'),
-      v.literal('red'),
-      v.literal('purple'),
-      v.literal('pink'),
-      v.literal('brown'),
-      v.literal('default'),
-    ),
+    color: hueValidator,
     sidebar_hidden: v.optional(v.boolean()),
     sidebar_width: v.optional(v.number()),
     agent_panel_hidden: v.optional(v.boolean()),
     agent_panel_width: v.optional(v.number()),
-    agent_panel_page: v.optional(
-      v.union(v.literal('chat'), v.literal('memory'), v.literal('tasks'), v.literal('history'), v.literal('new')),
-    ),
+    agent_panel_page: v.optional(agentPanelPageValidator),
     // Order of high-level sidebar sections for this user
-    sidebar_sections_order: v.optional(v.array(v.union(v.literal('teams'), v.literal('private')))),
+    sidebar_sections_order: v.optional(v.array(sidebarSectionKeyValidator)),
     // Optional per-user ordering of teams in the sidebar
-    sidebar_team_order: v.optional(v.array(v.id('teams'))),
+    sidebar_team_order: v.optional(v.array(teamIdValidator)),
   })
     .index('by_email', ['email'])
     .index('by_workos_id', ['workos_id']),
@@ -174,7 +147,7 @@ export default defineSchema({
       v.object({ kind: v.literal('org'), workos_org_id: v.string() }),
       v.object({ kind: v.literal('public') }),
     ),
-    level: v.union(v.literal('read'), v.literal('write'), v.literal('admin')),
+    level: permissionLevelValidator,
     subject_key: v.string(),
     created_at: v.number(),
     created_by: v.string(),
@@ -189,7 +162,7 @@ export default defineSchema({
   share_links: defineTable({
     block_id: v.id('blocks'),
     token: v.string(),
-    level: v.union(v.literal('read'), v.literal('write')),
+    level: shareLevelValidator,
     expires_at: v.optional(v.number()),
     created_at: v.number(),
     created_by: v.string(),
@@ -228,7 +201,7 @@ export default defineSchema({
     workos_org_id: v.string(),
     created_by: v.string(),
     model: v.optional(v.string()),
-    status: v.optional(v.union(v.literal('open'), v.literal('closed'))),
+    status: v.optional(threadStatusValidator),
     created_at: v.number(),
     updated_at: v.number(),
   })
@@ -245,7 +218,7 @@ export default defineSchema({
 
     // new optional fields
     thread_id: v.optional(v.id('threads')),
-    role: v.optional(v.union(v.literal('user'), v.literal('assistant'), v.literal('system'))),
+    role: v.optional(messageRoleValidator),
     block_id: v.optional(v.id('blocks')),
     meta: v.optional(v.any()),
     org_id: v.optional(v.string()),

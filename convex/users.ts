@@ -3,6 +3,13 @@ import { internalQuery, mutation, query } from './_generated/server';
 import { v } from 'convex/values';
 import schema from './schema';
 import { crud } from 'convex-helpers/server/crud';
+import {
+  agentPanelPageValidator,
+  layoutHiddenTargetValidator,
+  layoutWidthTargetValidator,
+  sidebarSectionKeyValidator,
+  teamIdValidator,
+} from './validators';
 
 const userFields = schema.tables.users.validator.fields;
 
@@ -23,7 +30,7 @@ export const getUser: ReturnType<typeof query> = query({
 // --------------------------------
 export const setLayoutWidth = mutation({
   // updates either agent_panel_width or sidebar_width for the user (providing this server side prevents layout shift on page load)
-  args: { target: v.union(v.literal('agent_panel_width'), v.literal('sidebar_width')), width: v.number() },
+  args: { target: layoutWidthTargetValidator, width: v.number() },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity?.subject) throw new Error('User not authenticated');
@@ -41,7 +48,7 @@ export const setLayoutWidth = mutation({
 });
 
 export const setLayoutHidden = mutation({
-  args: { target: v.union(v.literal('agent_panel_hidden'), v.literal('sidebar_hidden')), hidden: v.boolean() },
+  args: { target: layoutHiddenTargetValidator, hidden: v.boolean() },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity?.subject) throw new Error('User not authenticated');
@@ -58,7 +65,7 @@ export const setLayoutHidden = mutation({
 });
 
 export const setAgentPanelPage = mutation({
-  args: { page: v.string() },
+  args: { page: agentPanelPageValidator },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity?.subject) throw new Error('User not authenticated');
@@ -77,7 +84,7 @@ export const setAgentPanelPage = mutation({
 // Persist the order of top-level sidebar sections for the user
 export const setSidebarSectionsOrder = mutation({
   args: {
-    order: v.array(v.union(v.literal('teams'), v.literal('private'))),
+    order: v.array(sidebarSectionKeyValidator),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -97,7 +104,7 @@ export const setSidebarSectionsOrder = mutation({
 
 // Persist the order of teams in the sidebar for the user
 export const setSidebarTeamsOrder = mutation({
-  args: { order: v.array(v.id('teams')) },
+  args: { order: v.array(teamIdValidator) },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity?.subject) throw new Error('User not authenticated');

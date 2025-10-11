@@ -6,7 +6,7 @@ import { useEffect, useRef } from 'react';
 import { useMutation } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import { IconGrid } from './compoents/icon-grid';
-import { Header, type Hue } from './compoents/incon-header';
+import { Header } from './compoents/incon-header';
 import { useMount } from '@legendapp/state/react';
 import dynamicIconImports from 'lucide-react/dynamicIconImports';
 import { Show, use$, useObservable } from '@legendapp/state/react';
@@ -15,6 +15,7 @@ import { ALL_ICONS, ICON_LOOKUP, normalizeForSearch, normalizeKey } from './lib'
 import { Empty } from './compoents/empty';
 import { cn } from '@/lib/utils';
 
+import type { Color } from '@/types/ui';
 import type { Observable } from '@legendapp/state';
 import type { IconMeta, BlockIcon } from './types';
 import type { Id } from '@/convex/_generated/dataModel';
@@ -51,7 +52,7 @@ export function IconsTab({
     showAll: () => state$.showIcons.get() && state$.showRecent.get(),
     noResults: () => state$.filteredAll.get().length === 0,
     // UI state for preview hue
-    color: 'default' as Hue,
+    color: 'default' as Color,
     iconsToShow: () =>
       state$.filteredAll
         .get()
@@ -116,10 +117,12 @@ export function IconsTab({
     try {
       handleRecordRecent(key);
       if (blockId) {
-        await setPreset({ blockId, key, style: 'line' });
+        const hue = state$.color.get();
+        await setPreset({ blockId, key, style: 'line', color: hue });
         toast.success('Icon updated');
       } else {
-        onSelected?.({ kind: 'preset', key, style: 'line' });
+        const hue = state$.color.get();
+        onSelected?.({ kind: 'preset', key, style: 'line', color: hue });
       }
       close();
       search$.set('');

@@ -50,8 +50,16 @@ export function Icon({
     // Map style to stroke/fill intent (minimal)
     const strokeWidth = icon.style === 'solid' ? 0 : 2;
     const fill = icon.style === 'solid' ? 'currentColor' : 'none';
+    // Optional hue for Lucide icons; falls back to foreground
+    const hue = (icon as unknown as { color?: string })?.color;
+    const hueClass = hue && hue !== 'default' ? `text-${hue}` : 'text-foreground';
     return (
-      <Comp aria-label={alt ?? icon.key} className={cn('h-5 w-5', className)} strokeWidth={strokeWidth} fill={fill} />
+      <Comp
+        aria-label={alt ?? icon.key}
+        className={cn('h-5 w-5', hueClass, className)}
+        strokeWidth={strokeWidth}
+        fill={fill}
+      />
     );
   }
 

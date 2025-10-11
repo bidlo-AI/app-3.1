@@ -3,6 +3,7 @@ import { v } from 'convex/values';
 import type { Doc, Id } from './_generated/dataModel';
 import type { MutationCtx } from './_generated/server';
 import { getSessionInfo } from './helpers';
+import { hueValidator, iconStyleValidator, blockIdValidator, fileIdValidator, imageCropValidator } from './validators';
 
 // --------------------------------
 // HELPERS (local)
@@ -39,7 +40,7 @@ async function issueUpload(
 // --------------------------------
 export const setPageIconEmoji = mutation({
   args: {
-    blockId: v.id('blocks'),
+    blockId: blockIdValidator,
     emoji: v.string(),
     shortcode: v.optional(v.string()),
     version: v.optional(v.string()),
@@ -59,21 +60,27 @@ export const setPageIconEmoji = mutation({
 
 export const setPageIconPreset = mutation({
   args: {
-    blockId: v.id('blocks'),
+    blockId: blockIdValidator,
     key: v.string(),
-    style: v.optional(v.union(v.literal('line'), v.literal('solid'))),
+    style: v.optional(iconStyleValidator),
+    color: v.optional(hueValidator),
   },
   handler: async (ctx, args) => {
     await assertWrite(ctx, args.blockId);
     await ctx.db.patch(args.blockId, {
-      icon: { kind: 'preset', key: args.key, ...(args.style && { style: args.style }) },
+      icon: {
+        kind: 'preset',
+        key: args.key,
+        ...(args.style && { style: args.style }),
+        ...(args.color && { color: args.color }),
+      },
     });
   },
 });
 
 export const prepareUploadPageIcon = mutation({
   args: {
-    blockId: v.id('blocks'),
+    blockId: blockIdValidator,
     filename: v.string(),
     mime: v.string(),
     size: v.number(),
@@ -106,9 +113,9 @@ export const prepareUploadPageIcon = mutation({
 
 export const finalizeUploadPageIcon = mutation({
   args: {
-    blockId: v.id('blocks'),
-    fileId: v.id('files'),
-    crop: v.optional(v.object({ x: v.number(), y: v.number(), size: v.number() })),
+    blockId: blockIdValidator,
+    fileId: fileIdValidator,
+    crop: v.optional(imageCropValidator),
   },
   handler: async (ctx, { blockId, fileId, crop }) => {
     await assertWrite(ctx, blockId);
@@ -135,7 +142,7 @@ export const finalizeUploadPageIcon = mutation({
 });
 
 export const clearPageIcon = mutation({
-  args: { blockId: v.id('blocks') },
+  args: { blockId: blockIdValidator },
   handler: async (ctx, { blockId }) => {
     await assertWrite(ctx, blockId);
     await ctx.db.patch(blockId, { icon: undefined });

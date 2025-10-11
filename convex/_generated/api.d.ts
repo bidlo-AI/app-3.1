@@ -23,6 +23,7 @@ import type * as organizations from "../organizations.js";
 import type * as presence from "../presence.js";
 import type * as teams from "../teams.js";
 import type * as users from "../users.js";
+import type * as validators from "../validators.js";
 import type * as workos from "../workos.js";
 
 /**
@@ -44,6 +45,7 @@ declare const fullApi: ApiFromModules<{
   presence: typeof presence;
   teams: typeof teams;
   users: typeof users;
+  validators: typeof validators;
   workos: typeof workos;
 }>;
 export declare const api: FilterApi<
