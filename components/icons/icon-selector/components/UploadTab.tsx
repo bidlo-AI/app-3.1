@@ -76,55 +76,58 @@ export function UploadTab({
     });
   }
 
-  async function onPickFile(file: File) {
-    if (!file) return;
-    if (!blockId) {
-      setError('Cannot upload without a block');
-      toast.error('Cannot upload without a block');
-      return;
-    }
-    try {
-      setUploading(true);
-      setProgress(0);
-      setError(null);
-      const { uploadUrl } = await prepareUpload({
-        blockId,
-        mime: file.type,
-        size: file.size,
-      });
-      // Step 2: POST the file to Convex's short-lived upload URL with progress
-      // See: https://docs.convex.dev/file-storage/upload-files
-      const { storageId } = await uploadFileWithProgress(uploadUrl, file, file.type, setProgress);
-      // Step 3: Persist the storage id and set the block's icon to this image
-      const result = await finalizeUpload({
-        blockId,
-        storageId,
-        filename: file.name,
-        mime: file.type,
-        size: file.size,
-      });
-      const url = result?.url;
-      if (url) {
-        // Record the public URL in local recents, deduped and capped.
-        setRecentUrls((prev) => upsertRecent(RECENT_UPLOAD_URLS_KEY, prev, url, RECENT_LIMIT));
+  const onPickFile = React.useCallback(
+    async (file: File) => {
+      if (!file) return;
+      if (!blockId) {
+        setError('Cannot upload without a block');
+        toast.error('Cannot upload without a block');
+        return;
       }
-      toast.success('Icon updated');
+      try {
+        setUploading(true);
+        setProgress(0);
+        setError(null);
+        const { uploadUrl } = await prepareUpload({
+          blockId,
+          mime: file.type,
+          size: file.size,
+        });
+        // Step 2: POST the file to Convex's short-lived upload URL with progress
+        // See: https://docs.convex.dev/file-storage/upload-files
+        const { storageId } = await uploadFileWithProgress(uploadUrl, file, file.type, setProgress);
+        // Step 3: Persist the storage id and set the block's icon to this image
+        const result = await finalizeUpload({
+          blockId,
+          storageId,
+          filename: file.name,
+          mime: file.type,
+          size: file.size,
+        });
+        const url = result?.url;
+        if (url) {
+          // Record the public URL in local recents, deduped and capped.
+          setRecentUrls((prev) => upsertRecent(RECENT_UPLOAD_URLS_KEY, prev, url, RECENT_LIMIT));
+        }
+        toast.success('Icon updated');
 
-      // Optimistically update parent with a direct URL if available via finalize
-      // We don't have the URL from finalize response, but Icon component now prefers url if present on block icon.
-      // The parent block should refresh via subscription; invoke callback without waiting.
-      callback?.({ kind: 'image', file_id: result.fileId, ...(url ? { url } : {}) } as BlockIcon);
-      onDone?.();
-    } catch (err) {
-      // Extract a readable error message for both toast and inline alert
-      const message = err instanceof Error ? err.message : typeof err === 'string' ? err : 'Upload failed';
-      setError(message);
-      toast.error(message);
-    } finally {
-      setUploading(false);
-      setProgress(0);
-    }
-  }
+        // Optimistically update parent with a direct URL if available via finalize
+        // We don't have the URL from finalize response, but Icon component now prefers url if present on block icon.
+        // The parent block should refresh via subscription; invoke callback without waiting.
+        callback?.({ kind: 'image', file_id: result.fileId, ...(url ? { url } : {}) } as BlockIcon);
+        onDone?.();
+      } catch (err) {
+        // Extract a readable error message for both toast and inline alert
+        const message = err instanceof Error ? err.message : typeof err === 'string' ? err : 'Upload failed';
+        setError(message);
+        toast.error(message);
+      } finally {
+        setUploading(false);
+        setProgress(0);
+      }
+    },
+    [blockId, prepareUpload, finalizeUpload, callback, onDone],
+  );
 
   async function handleSelectRecent(url: string) {
     try {
@@ -139,6 +142,66 @@ export function UploadTab({
       toast.error('Failed to set image');
     }
   }
+
+  // Allow users to paste an image (from clipboard) or a link to an image.
+  // This listens globally while the tab is mounted for a smooth UX.
+  React.useEffect(() => {
+    const onPaste = (event: Event) => {
+      if (uploading) return;
+      const e = event as ClipboardEvent;
+      const cd = e.clipboardData;
+      if (!cd) return;
+
+      // Do not hijack paste when the user is typing into an editable field
+      const active = (document.activeElement as HTMLElement | null) ?? undefined;
+      const isEditable = !!active && (active.isContentEditable || ['INPUT', 'TEXTAREA'].includes(active.tagName));
+      if (isEditable) return;
+
+      // Prefer image content if available
+      const items = cd.items;
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        if (item.type && item.type.startsWith('image/')) {
+          const file = item.getAsFile();
+          if (file) {
+            // Fire and let existing upload logic handle progress/errors
+            void onPickFile(file);
+            e.preventDefault();
+            return;
+          }
+        }
+      }
+
+      // Otherwise fall back to text; set by URL if it looks like http(s)
+      const text = cd.getData('text');
+      if (text && /^https?:\/\//.test(text.trim())) {
+        const url = text.trim();
+        if (!blockId) {
+          const msg = 'Cannot set image without a block';
+          setError(msg);
+          toast.error(msg);
+          return;
+        }
+        // Update local recents immediately
+        setRecentUrls((prev) => upsertRecent(RECENT_UPLOAD_URLS_KEY, prev, url, RECENT_LIMIT));
+        // Persist to server and notify parent
+        (async () => {
+          try {
+            await setImageByUrl({ blockId, url });
+            callback?.({ kind: 'image', url } as BlockIcon);
+            onDone?.();
+            toast.success('Icon updated');
+          } catch {
+            toast.error('Failed to set image');
+          }
+        })();
+        e.preventDefault();
+      }
+    };
+
+    window.addEventListener('paste', onPaste);
+    return () => window.removeEventListener('paste', onPaste);
+  }, [uploading, blockId, setImageByUrl, callback, onDone, onPickFile]);
 
   return (
     <>
@@ -159,6 +222,7 @@ export function UploadTab({
             }}
           />
         </label>
+        <p className="text-center text-xs text-muted-foreground-opaque mt-2">or ⌘+V to paste an image or link</p>
       </div>
 
       {uploading && (

@@ -7,9 +7,6 @@ import { cn } from '@/lib/utils';
 
 type BlockIcon = Doc<'blocks'>['icon'];
 
-// Cache Lucide component lookups to avoid repeated reflection per render
-const lucideCache = new Map<string, LucideIcon>();
-
 // Narrowed local shape for stronger typing in memo comparisons
 type EmojiIcon = { kind: 'emoji'; emoji: string; shortcode?: string; version?: string };
 type PresetIcon = { kind: 'preset'; key: string; style?: 'line' | 'solid'; color?: string };
@@ -37,14 +34,12 @@ function IconComponent({
   className,
   alt,
   size,
-  resolveFileUrl,
 }: {
   icon?: BlockIcon | null;
   title?: string;
   className?: string;
   alt?: string;
   size: number;
-  resolveFileUrl?: (fileId: Id<'files'>) => string | undefined;
 }) {
   // Fallback monogram when no icon is set
   if (!icon) return <Monogram title={title} className={className} size={size} />;
@@ -84,27 +79,32 @@ function IconComponent({
 
   if (icon.kind === 'image') {
     // Prefer a directly stored URL if available; fallback to resolver if provided
-    const directUrl = (icon as { url?: string })?.url;
-    const fileId = (icon as { file_id?: Id<'files'> }).file_id;
-    const resolvedUrl = fileId && resolveFileUrl ? resolveFileUrl(fileId) : undefined;
-    const url = directUrl ?? resolvedUrl;
+    const url = (icon as { url?: string })?.url;
     if (!url) return <Monogram title={title} className={className} size={size} />;
 
     // If crop provided as relative {x,y,size} (0..1), map to object-position percent
     const objectPosition = icon.crop
       ? `${Math.round(icon.crop.x * 100)}% ${Math.round(icon.crop.y * 100)}%`
       : undefined;
+    // Use a relative wrapper and Next.js Image fill to ensure the image fully covers
+    // the available square while respecting optional crop focus.
     return (
-      <Image
-        src={url}
-        alt={alt ?? (title ? `${title} icon` : 'icon')}
-        width={size}
-        height={size}
-        className={cn('rounded object-cover', className)}
-        style={objectPosition ? { objectPosition } : undefined}
-        draggable={false}
-        loading="lazy"
-      />
+      <span
+        aria-label={alt ?? (title ? `${title} icon` : 'icon')}
+        className={cn('relative inline-block overflow-hidden rounded', className)}
+        style={{ width: size, height: size }}
+      >
+        <Image
+          src={url}
+          alt={alt ?? (title ? `${title} icon` : 'icon')}
+          fill
+          sizes={`${size}px`}
+          className="object-cover"
+          style={objectPosition ? { objectPosition } : undefined}
+          draggable={false}
+          loading="lazy"
+        />
+      </span>
     );
   }
 
@@ -133,11 +133,7 @@ function resolveLucide(key: string): LucideIcon | undefined {
     .split(/[-_\s]+/)
     .map((p) => p.charAt(0).toUpperCase() + p.slice(1))
     .join('');
-  const cached = lucideCache.get(name);
-  if (cached) return cached;
-  const comp = (Lucide as unknown as Record<string, LucideIcon>)[name];
-  if (comp) lucideCache.set(name, comp);
-  return comp;
+  return (Lucide as unknown as Record<string, LucideIcon>)[name];
 }
 
 // Removed LazyImage fallback to avoid requiring Convex provider in low-level component
@@ -175,7 +171,6 @@ function areIconPropsEqual(
     className?: string;
     alt?: string;
     size: number;
-    resolveFileUrl?: (fileId: Id<'files'>) => string | undefined;
   },
   next: {
     icon?: BlockIcon | null;
@@ -183,7 +178,6 @@ function areIconPropsEqual(
     className?: string;
     alt?: string;
     size: number;
-    resolveFileUrl?: (fileId: Id<'files'>) => string | undefined;
   },
 ): boolean {
   return (
@@ -191,7 +185,6 @@ function areIconPropsEqual(
     prev.className === next.className &&
     prev.title === next.title &&
     prev.alt === next.alt &&
-    prev.resolveFileUrl === next.resolveFileUrl &&
     iconsEqual(prev.icon, next.icon)
   );
 }
