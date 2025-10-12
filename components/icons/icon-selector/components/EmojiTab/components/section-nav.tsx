@@ -5,14 +5,9 @@ import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { Clock, Smile, Leaf, Utensils, Plane, Dumbbell, Package, Hash, Flag } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-import type { CategoryKey } from './EmojiTab/types';
+import type { CategoryKey } from '../types';
 import type { Observable } from '@legendapp/state';
 import { Show } from '@legendapp/state/react';
-
-// Bottom bar with category shortcuts and scroll-to-section behavior.
-// Kept isolated to minimize impact on the parent component.
-
-// Uses shared CategoryKey from lib to avoid duplication
 
 const ICON_MAP: Record<CategoryKey, LucideIcon> = {
   smileys_people: Smile,
@@ -25,7 +20,7 @@ const ICON_MAP: Record<CategoryKey, LucideIcon> = {
   flags: Flag,
 };
 
-export default function BottomSectionsBar({
+export function SectionNav({
   hasRecent$,
   currentSection,
   groups,

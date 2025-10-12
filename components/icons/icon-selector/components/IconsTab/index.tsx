@@ -11,7 +11,18 @@ import { useMount } from '@legendapp/state/react';
 import dynamicIconImports from 'lucide-react/dynamicIconImports';
 import { Show, use$, useObservable } from '@legendapp/state/react';
 import { Command, CommandList, CommandGroup } from '@/components/ui/command';
-import { ALL_ICONS, ICON_LOOKUP, normalizeForSearch, normalizeKey } from './lib';
+import { ALL_ICONS, ICON_LOOKUP, normalizeKey } from './lib';
+import {
+  RECENT_LIMIT,
+  PAGE_SIZE,
+  INITIAL_VISIBLE,
+  SEARCH_DEBOUNCE_MS,
+  SCROLL_THRESHOLD_PX,
+  normalizeForSearch,
+  subscribeDebouncedSearch,
+  loadRecentsFromStorage,
+  upsertRecent,
+} from '@/components/icons/icon-selector/lib';
 import { Empty } from './compoents/empty';
 import { cn } from '@/lib/utils';
 import { uiState$ } from '@/features/layout/providers/ui-state';
@@ -21,12 +32,6 @@ import type { BlockIcon, IconMeta } from './types';
 import type { Id } from '@/convex/_generated/dataModel';
 
 const RECENT_ICONS_KEY = 'icons:recent';
-const RECENT_LIMIT = 11; // cap list length and recent UI row
-const PAGE_SIZE = 66; // 11 columns * 6 rows
-const INITIAL_VISIBLE = PAGE_SIZE * 2; // ensure initial overflow to enable scrolling
-const LOAD_MORE_DEBOUNCE_MS = 120; // debounce load-more on scroll
-const SEARCH_DEBOUNCE_MS = 120; // debounce search input
-const SCROLL_THRESHOLD_PX = 16; // distance from bottom to trigger load-more
 
 export function IconsTab({
   blockId,
@@ -75,45 +80,31 @@ export function IconsTab({
 
   //mount
   useMount(() => {
-    const raw = typeof window !== 'undefined' ? window.localStorage.getItem(RECENT_ICONS_KEY) : null;
-    if (!raw) return;
-    const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed)) {
-      const cleaned = parsed
-        .map((k: unknown) => (typeof k === 'string' ? normalizeKey(k) : ''))
-        .filter((k: string) => k && Object.prototype.hasOwnProperty.call(dynamicIconImports, k));
-      state$.recentList.set(cleaned.slice(0, RECENT_LIMIT));
-    }
+    const loaded = loadRecentsFromStorage(
+      RECENT_ICONS_KEY,
+      RECENT_LIMIT,
+      (k) => normalizeKey(k),
+      (k) => Object.prototype.hasOwnProperty.call(dynamicIconImports, k),
+    );
+    if (loaded.length) state$.recentList.set(loaded);
   });
 
   //listeners
-  useEffect(() => {
-    let t: ReturnType<typeof setTimeout> | undefined;
-    const unsubscribe = search$.onChange(({ value }) => {
-      if (t) clearTimeout(t);
-      t = setTimeout(() => {
-        state$.debouncedQuery.set(value);
-        state$.visibleCount.set(INITIAL_VISIBLE);
-      }, SEARCH_DEBOUNCE_MS);
-    });
-    return () => {
-      if (t) clearTimeout(t);
-      unsubscribe();
-    };
-  }, [search$]);
+  const onDebounced = useCallback(
+    (value: string) => {
+      state$.debouncedQuery.set(value);
+      state$.visibleCount.set(INITIAL_VISIBLE);
+    },
+    [state$],
+  );
+  useEffect(() => subscribeDebouncedSearch(search$, SEARCH_DEBOUNCE_MS, onDebounced), [search$, onDebounced]);
 
   // handlers
   const handleSelect = useCallback(
     async (key: string) => {
       if (!state$.keyExists(key)) return toast.error('Icon not found');
-      // Record recent with dedupe + persist
-      state$.recentList.set((prev) => {
-        const normalized = normalizeKey(key);
-        const withoutDupes = prev.filter((k) => k !== normalized);
-        const next = [normalized, ...withoutDupes].slice(0, RECENT_LIMIT);
-        if (typeof window !== 'undefined') window.localStorage.setItem(RECENT_ICONS_KEY, JSON.stringify(next));
-        return next;
-      });
+      // Record recent with dedupe + persist via shared helper
+      state$.recentList.set((prev) => upsertRecent(RECENT_ICONS_KEY, prev, key, RECENT_LIMIT, normalizeKey));
       if (blockId) {
         const c = uiState$.iconPicker.iconColor.get();
         void setPreset({ blockId, key, style: 'line', color: c }).catch(() => toast.error('Failed to set icon'));
@@ -137,8 +128,6 @@ export function IconsTab({
     if (k) void handleSelect(k);
   };
 
-  // Keep load-more debounce state in a ref to avoid mutating DOM
-  const lastLoadMoreAtRef = useRef(0);
   const scrollRafIdRef = useRef<number | null>(null);
   const filteredRecent = use$(state$.filteredRecent);
   const iconsToShow = use$(state$.iconsToShow);
@@ -157,12 +146,7 @@ export function IconsTab({
                 scrollRafIdRef.current = null;
                 const distanceFromBottom = t.scrollHeight - (t.scrollTop + t.clientHeight);
                 if (distanceFromBottom <= SCROLL_THRESHOLD_PX && state$.hasMore.get()) {
-                  const now = Date.now();
-                  const last = lastLoadMoreAtRef.current;
-                  if (now - last >= LOAD_MORE_DEBOUNCE_MS) {
-                    lastLoadMoreAtRef.current = now;
-                    state$.visibleCount.set((prev) => prev + PAGE_SIZE);
-                  }
+                  state$.visibleCount.set((prev) => prev + PAGE_SIZE);
                 }
               });
             }}

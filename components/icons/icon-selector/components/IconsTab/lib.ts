@@ -1,5 +1,6 @@
 import dynamicIconImports from 'lucide-react/dynamicIconImports';
 import { IconMeta } from './types';
+import { normalizeForSearch } from '@/components/icons/icon-selector/lib';
 
 // Normalize helper for kebab-case to PascalCase
 export const kebabToPascal = (kebab: string) =>
@@ -8,12 +9,7 @@ export const kebabToPascal = (kebab: string) =>
     .map((p) => p.charAt(0).toUpperCase() + p.slice(1))
     .join('');
 
-// Normalize a string for search indexing
-export const normalizeForSearch = (s: string) =>
-  s
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]/g, '');
+// normalizeForSearch is re-exported from the shared lib for consistency
 
 // Normalize a key to kebab-case-like lookups (spaces/underscores to dashes)
 export const normalizeKey = (key: string) =>
