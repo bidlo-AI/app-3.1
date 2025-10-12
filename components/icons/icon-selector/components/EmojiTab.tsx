@@ -188,6 +188,7 @@ export function EmojiTab({
     debouncedQuery: '',
     visibleCount: INITIAL_VISIBLE,
     hasMore: () => state$.visibleCount.get() < state$.filteredAllCount.get(),
+    currentSection: null as null | ('recent' | CategoryKey),
     // Derived sets
     filteredAllGroups: () => {
       const q = normalize(state$.debouncedQuery.get());
@@ -307,6 +308,7 @@ export function EmojiTab({
   const lastLoadMoreAtRef = useRef(0);
   const filteredRecent = use$(state$.filteredRecent);
   const skinTone = use$(state$.skinTone);
+  const currentSection = use$(state$.currentSection);
 
   // Refs for scrolling
   const listRef = useRef<HTMLDivElement | null>(null);
@@ -349,6 +351,7 @@ export function EmojiTab({
 
   useEffect(() => {
     tryScrollIfPending();
+    updateActiveByScroll();
   }, [groupsLimited, filteredRecent]);
 
   const handleScrollToSection = (section: 'recent' | CategoryKey) => {
@@ -367,6 +370,42 @@ export function EmojiTab({
     pendingScrollRef.current = section;
     // Try immediately, otherwise effect will retry after DOM updates
     requestAnimationFrame(() => tryScrollIfPending());
+  };
+
+  // Scroll spy: determine which section is in view and update highlight
+  const updateActiveByScroll = () => {
+    const c = listRef.current;
+    if (!c) return;
+    const containerTop = c.getBoundingClientRect().top;
+    const sections: Array<{ key: 'recent' | CategoryKey; el: HTMLElement }> = [];
+    if (filteredRecent.length > 0 && recentRef.current) {
+      sections.push({ key: 'recent', el: recentRef.current });
+    }
+    // Only consider groups currently rendered (limited)
+    for (const g of groupsLimited) {
+      const key = LABEL_TO_KEY[g.label];
+      const el = groupRefs.current[key];
+      if (el) sections.push({ key, el });
+    }
+    if (sections.length === 0) {
+      state$.currentSection.set(null);
+      return;
+    }
+    const offsets = sections.map(({ key, el }) => ({
+      key,
+      offset: el.getBoundingClientRect().top - containerTop,
+    }));
+    const ABOVE_EPS = 8; // px tolerance for being considered at top
+    const above = offsets.filter((o) => o.offset <= ABOVE_EPS);
+    let active: 'recent' | CategoryKey | null = null;
+    if (above.length > 0) {
+      // choose the closest to the top (max offset among <= 0)
+      active = above.sort((a, b) => b.offset - a.offset)[0]!.key;
+    } else {
+      // choose the next section below the top (min positive offset)
+      active = offsets.sort((a, b) => a.offset - b.offset)[0]!.key;
+    }
+    state$.currentSection.set(active);
   };
 
   return (
@@ -400,6 +439,7 @@ export function EmojiTab({
                   state$.visibleCount.set((prev) => prev + PAGE_SIZE);
                 }
               }
+              updateActiveByScroll();
             }}
           >
             <Show if={() => state$.filteredAllCount.get() === 0}>
@@ -441,7 +481,7 @@ export function EmojiTab({
                 variant="ghost"
                 size="icon"
                 aria-label="Recent"
-                className="text-muted-foreground"
+                className={`text-muted-foreground ${currentSection === 'recent' ? 'bg-hover' : ''}`}
                 onClick={() => handleScrollToSection('recent')}
               >
                 <Clock className="size-5" />
@@ -460,7 +500,7 @@ export function EmojiTab({
                   variant="ghost"
                   size="icon"
                   aria-label={g.label}
-                  className="text-muted-foreground size-8"
+                  className={`text-muted-foreground size-8 ${currentSection === g.key ? 'bg-hover' : ''}`}
                   onClick={() => handleScrollToSection(g.key)}
                 >
                   <Icon className="size-5" />
