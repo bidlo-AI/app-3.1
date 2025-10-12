@@ -9,13 +9,13 @@ import { Button } from '@/components/ui/button';
 import { Command, CommandList, CommandGroup } from '@/components/ui/command';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
-import { ArrowRightLeft } from 'lucide-react';
+import { ArrowRightLeft, Smile, Leaf, Utensils, Plane, Dumbbell, Package, Hash, Flag, Clock } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import { Show, use$, useObservable, useMount } from '@legendapp/state/react';
 import type { Observable } from '@legendapp/state';
 import { SearchInput } from '@/components/icons/icon-selector/components/search-input';
 import { Fades } from '@/components/icons/icon-selector/components/IconsTab/compoents/fades';
-import { cn } from '@/lib/utils';
 import { BlockIcon } from './IconsTab/types';
 
 // Large dataset of emojis organized by category (ships with emoji-picker-react)
@@ -55,6 +55,26 @@ const CATEGORY_ORDER: { key: CategoryKey; label: string }[] = [
   { key: 'symbols', label: 'Symbols' },
   { key: 'flags', label: 'Flags' },
 ];
+
+const LABEL_TO_KEY: Record<string, CategoryKey> = CATEGORY_ORDER.reduce(
+  (acc, { key, label }) => {
+    acc[label] = key;
+    return acc;
+  },
+  {} as Record<string, CategoryKey>,
+);
+
+const ICON_MAP: Record<'recent' | CategoryKey, LucideIcon> = {
+  recent: Clock,
+  smileys_people: Smile,
+  animals_nature: Leaf,
+  food_drink: Utensils,
+  travel_places: Plane,
+  activities: Dumbbell,
+  objects: Package,
+  symbols: Hash,
+  flags: Flag,
+};
 
 type EmojiData = { n: string[]; u: string; v?: string[] };
 type SkinToneKey = 'neutral' | '1f3fb' | '1f3fc' | '1f3fd' | '1f3fe' | '1f3ff';
@@ -283,9 +303,71 @@ export function EmojiTab({
   };
 
   const groupsLimited = use$(state$.groupsLimited);
+  const groupsAll = use$(state$.filteredAllGroups);
   const lastLoadMoreAtRef = useRef(0);
   const filteredRecent = use$(state$.filteredRecent);
   const skinTone = use$(state$.skinTone);
+
+  // Refs for scrolling
+  const listRef = useRef<HTMLDivElement | null>(null);
+  const recentRef = useRef<HTMLDivElement | null>(null);
+  const groupRefs = useRef<Record<CategoryKey, HTMLDivElement | null>>({
+    smileys_people: null,
+    animals_nature: null,
+    food_drink: null,
+    travel_places: null,
+    activities: null,
+    objects: null,
+    symbols: null,
+    flags: null,
+  });
+  const pendingScrollRef = useRef<null | ('recent' | CategoryKey)>(null);
+
+  const scrollContainerTo = (el: HTMLElement) => {
+    const c = listRef.current;
+    if (!c) return;
+    const targetTop = el.getBoundingClientRect().top - c.getBoundingClientRect().top + c.scrollTop - 4;
+    c.scrollTo({ top: targetTop, behavior: 'smooth' });
+  };
+
+  const tryScrollIfPending = () => {
+    const target = pendingScrollRef.current;
+    if (!target) return;
+    if (target === 'recent') {
+      if (recentRef.current) {
+        scrollContainerTo(recentRef.current);
+        pendingScrollRef.current = null;
+      }
+      return;
+    }
+    const el = groupRefs.current[target];
+    if (el) {
+      scrollContainerTo(el);
+      pendingScrollRef.current = null;
+    }
+  };
+
+  useEffect(() => {
+    tryScrollIfPending();
+  }, [groupsLimited, filteredRecent]);
+
+  const handleScrollToSection = (section: 'recent' | CategoryKey) => {
+    // Ensure the target section exists in the DOM, expanding visible items if needed
+    if (section !== 'recent') {
+      const all = state$.filteredAllGroups.get();
+      const idx = all.findIndex((g) => g.key === section);
+      if (idx >= 0) {
+        const itemsBefore = all.slice(0, idx).reduce((acc, g) => acc + g.items.length, 0);
+        const current = state$.visibleCount.get();
+        if (current <= itemsBefore) {
+          state$.visibleCount.set(itemsBefore + PAGE_SIZE);
+        }
+      }
+    }
+    pendingScrollRef.current = section;
+    // Try immediately, otherwise effect will retry after DOM updates
+    requestAnimationFrame(() => tryScrollIfPending());
+  };
 
   return (
     <div className="">
@@ -304,8 +386,9 @@ export function EmojiTab({
             <SkinToneSelector value={skinTone} onChange={handleToneChange} />
           </div>
         </div>
-        <div className={cn('relative pt-1 pb-2')}>
+        <div className="relative pt-1">
           <CommandList
+            ref={listRef as unknown as React.Ref<HTMLDivElement>}
             onScroll={(e) => {
               const t = e.currentTarget;
               const distanceFromBottom = t.scrollHeight - (t.scrollTop + t.clientHeight);
@@ -323,19 +406,71 @@ export function EmojiTab({
               <div className="py-6 text-center text-sm text-muted-foreground">No results</div>
             </Show>
             <Show if={() => state$.filteredRecent.get().length > 0}>
-              <CommandGroup heading="Recent" className="text-inherit">
-                <EmojiGrid items={filteredRecent} onSelect={handleSelect} />
-              </CommandGroup>
+              <div ref={recentRef}>
+                <CommandGroup heading="Recent" className="text-inherit">
+                  <EmojiGrid items={filteredRecent} onSelect={handleSelect} />
+                </CommandGroup>
+              </div>
             </Show>
-            {groupsLimited.map((g) => (
-              <CommandGroup key={g.label} heading={g.label} className="text-inherit">
-                <EmojiGrid items={g.items} onSelect={handleSelect} />
-              </CommandGroup>
-            ))}
+            {groupsLimited.map((g) => {
+              const key = LABEL_TO_KEY[g.label];
+              return (
+                <div
+                  key={g.label}
+                  ref={(el) => {
+                    groupRefs.current[key] = el;
+                  }}
+                >
+                  <CommandGroup heading={g.label} className="text-inherit">
+                    <EmojiGrid items={g.items} onSelect={handleSelect} />
+                  </CommandGroup>
+                </div>
+              );
+            })}
           </CommandList>
           <Fades />
         </div>
       </Command>
+      {/* Bottom sections bar */}
+      <div className=" border-t py-2 px-3 flex items-center justify-between gap-1 overflow-x-auto">
+        {filteredRecent.length > 0 && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                aria-label="Recent"
+                className="text-muted-foreground"
+                onClick={() => handleScrollToSection('recent')}
+              >
+                <Clock className="size-5" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="top">Recent</TooltipContent>
+          </Tooltip>
+        )}
+        {groupsAll.map((g) => {
+          const Icon = ICON_MAP[g.key];
+          return (
+            <Tooltip key={g.key}>
+              <TooltipTrigger asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  aria-label={g.label}
+                  className="text-muted-foreground size-8"
+                  onClick={() => handleScrollToSection(g.key)}
+                >
+                  <Icon className="size-5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="top">{g.label}</TooltipContent>
+            </Tooltip>
+          );
+        })}
+      </div>
     </div>
   );
 }

@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils';
 const ghostClasses = 'hover:bg-accent hover:text-accent-foreground hover:bg-hover';
 
 const buttonVariants = cva(
-  " focus-within:ring-2 focus-within:ring-primary inline-flex items-center cursor-pointer justify-center text-sm gap-2 whitespace-nowrap rounded-md font-medium  disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none  aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive",
+  "inline-flex items-center cursor-pointer justify-center text-sm gap-2 whitespace-nowrap rounded-md font-medium  disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none  aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive",
   {
     variants: {
       variant: {
@@ -39,14 +39,25 @@ function Button({
   variant,
   size,
   asChild = false,
+  focusable = false,
   ...props
 }: React.ComponentProps<'button'> &
   VariantProps<typeof buttonVariants> & {
     asChild?: boolean;
+    focusable?: boolean;
   }) {
   const Comp = asChild ? Slot : 'button';
 
-  return <Comp data-slot="button" className={cn(buttonVariants({ variant, size, className }))} {...props} />;
+  return (
+    <Comp
+      data-slot="button"
+      className={cn(
+        focusable && 'focus-within:ring-2 focus-within:ring-primary',
+        buttonVariants({ variant, size, className }),
+      )}
+      {...props}
+    />
+  );
 }
 
 export { Button, buttonVariants };
