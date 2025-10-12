@@ -19,7 +19,7 @@ export const Header = ({
 }) => (
   <>
     <div className="spacer-l" />
-    <SidebarActions preloadedUser={preloadedUser} orgId={orgId} accessToken={accessToken} />
+    <SidebarActions preloadedUser={preloadedUser} accessToken={accessToken} />
     <OrgSelect orgId={orgId} />
     <Suspense fallback={null}>
       <AgentActions />

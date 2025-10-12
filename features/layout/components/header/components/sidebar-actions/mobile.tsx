@@ -9,11 +9,9 @@ import { api } from '@/convex/_generated/api';
 export const MobileSidebarAction = ({
   preloadedUser,
   accessToken,
-  orgId,
 }: {
   preloadedUser: Preloaded<typeof api.users.getUser>;
   accessToken: string;
-  orgId: string;
 }) => {
   return (
     <div className="flex md:hidden sidebar h-full items-center pr-1.5">
@@ -31,7 +29,7 @@ export const MobileSidebarAction = ({
             </SheetHeader>
           </VisuallyHidden>
           <div>
-            <SidebarContent preloadedUser={preloadedUser} orgId={orgId} accessToken={accessToken} />
+            <SidebarContent preloadedUser={preloadedUser} accessToken={accessToken} />
           </div>
         </SheetContent>
       </Sheet>
