@@ -3,7 +3,7 @@ import { v } from 'convex/values';
 import type { Doc, Id } from './_generated/dataModel';
 import type { MutationCtx } from './_generated/server';
 import { getSessionInfo } from './helpers';
-import { hueValidator, iconStyleValidator, blockIdValidator, fileIdValidator, imageCropValidator } from './validators';
+import { hueValidator, iconStyleValidator, blockIdValidator, imageCropValidator } from './validators';
 
 // --------------------------------
 // HELPERS (local)
@@ -72,13 +72,11 @@ export const setPageIconPreset = mutation({
 export const prepareUploadPageIcon = mutation({
   args: {
     blockId: blockIdValidator,
-    filename: v.string(),
     mime: v.string(),
     size: v.number(),
   },
-  handler: async (ctx, { blockId, filename, mime, size }) => {
+  handler: async (ctx, { blockId, mime, size }) => {
     await assertWrite(ctx, blockId);
-    const { workos_user_id, workos_org_id } = await getSessionInfo(ctx);
 
     // Simple validation to keep pipeline safe
     const allowed = ['image/png', 'image/jpeg', 'image/webp', 'image/avif'];
@@ -87,12 +85,35 @@ export const prepareUploadPageIcon = mutation({
     // Step 1: Generate a short-lived upload URL (Convex Storage)
     // See: https://docs.convex.dev/file-storage/upload-files
     const uploadUrl = await ctx.storage.generateUploadUrl();
-    // Step 2: Create a placeholder file record now so we can reference it in the UI
-    // We'll fill in the actual storage id during finalize.
+    // No DB placeholder; the file row will be created during finalize
+    return { uploadUrl } as const;
+  },
+});
+
+export const finalizeUploadPageIcon = mutation({
+  args: {
+    blockId: blockIdValidator,
+    // Storage id returned by Convex after POSTing the file to uploadUrl
+    storageId: v.id('_storage'),
+    filename: v.string(),
+    mime: v.string(),
+    size: v.number(),
+    crop: v.optional(imageCropValidator),
+  },
+  handler: async (ctx, { blockId, storageId, filename, mime, size, crop }) => {
+    await assertWrite(ctx, blockId);
+    const { workos_user_id, workos_org_id } = await getSessionInfo(ctx);
+
+    // Validate again in finalize to protect direct calls
+    const allowed = ['image/png', 'image/jpeg', 'image/webp', 'image/avif'];
+    if (!allowed.includes(mime)) throw new Error('Unsupported MIME type');
+    if (size > 512 * 1024) throw new Error('File too large');
+
+    // Create the file record now with the actual storage id
     const fileId = await ctx.db.insert('files', {
       block_id: blockId,
       workos_org_id,
-      storage_key: '',
+      storage_id: storageId,
       name: filename,
       mime,
       size,
@@ -100,29 +121,6 @@ export const prepareUploadPageIcon = mutation({
       uploaded_at: Date.now(),
       purpose: 'page_icon',
     });
-
-    return { uploadUrl, fileId } as const;
-  },
-});
-
-export const finalizeUploadPageIcon = mutation({
-  args: {
-    blockId: blockIdValidator,
-    fileId: fileIdValidator,
-    // Storage id returned by Convex after POSTing the file to uploadUrl
-    storageId: v.id('_storage'),
-    crop: v.optional(imageCropValidator),
-  },
-  handler: async (ctx, { blockId, fileId, storageId, crop }) => {
-    await assertWrite(ctx, blockId);
-    const file = await ctx.db.get(fileId);
-    if (!file) throw new Error('File not found');
-    if (file.block_id !== blockId) throw new Error('Invalid file for block');
-    if (file.purpose !== 'page_icon') throw new Error('Invalid purpose for icon');
-    // Attach the Convex storage id to the file metadata so it can be resolved later
-    if (!file.storage_key) {
-      await ctx.db.patch(fileId, { storage_key: storageId });
-    }
 
     // Optional: clean up older icon files for this block
     const others = await ctx.db
@@ -141,7 +139,8 @@ export const finalizeUploadPageIcon = mutation({
     await ctx.db.patch(blockId, {
       icon: { kind: 'image', url: url ?? undefined, file_id: fileId, ...(crop && { crop }) },
     });
-    return { success: true } as const;
+    // Return the resolved URL and the new file id so the client can cache both
+    return { success: true, url: url ?? undefined, fileId } as const;
   },
 });
 
@@ -158,3 +157,22 @@ export const clearPageIcon = mutation({
 // Resolve a file's temporary URL for rendering uploaded image icons.
 // Enforces the same read permissions as viewing the owning block.
 // Removed legacy URL resolver query; the image URL is embedded directly into the block icon now.
+
+// ------------------------------------------------------------
+// Set icon directly by public URL (no upload)
+// ------------------------------------------------------------
+export const setPageIconImageUrl = mutation({
+  args: {
+    blockId: blockIdValidator,
+    url: v.string(),
+    crop: v.optional(imageCropValidator),
+  },
+  handler: async (ctx, { blockId, url, crop }) => {
+    await assertWrite(ctx, blockId);
+    // Store as an image icon that references an external/public URL only.
+    await ctx.db.patch(blockId, {
+      icon: { kind: 'image', url, ...(crop && { crop }) },
+    });
+    return { success: true } as const;
+  },
+});

@@ -7,6 +7,8 @@ import { api } from '@/convex/_generated/api';
 import { ImageIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import { BlockIcon } from './IconsTab/types';
+import { Command, CommandGroup, CommandList } from '@/components/ui/command';
+import { RECENT_LIMIT, loadRecentsFromStorage, upsertRecent } from '@/components/icons/icon-selector/lib';
 
 export function UploadTab({
   blockId,
@@ -23,6 +25,21 @@ export function UploadTab({
   const inputRef = React.useRef<HTMLInputElement | null>(null);
   const prepareUpload = useMutation(api.icons.prepareUploadPageIcon);
   const finalizeUpload = useMutation(api.icons.finalizeUploadPageIcon);
+  const setImageByUrl = useMutation(api.icons.setPageIconImageUrl);
+
+  // Local recents are public image URLs (not files) so we avoid re-uploading.
+  const RECENT_UPLOAD_URLS_KEY = 'upload_urls:recent';
+  const [recentUrls, setRecentUrls] = React.useState<string[]>([]);
+
+  React.useEffect(() => {
+    const loaded = loadRecentsFromStorage(
+      RECENT_UPLOAD_URLS_KEY,
+      RECENT_LIMIT,
+      (s) => s.trim(),
+      (s) => /^https?:\/\//.test(s),
+    );
+    if (loaded.length) setRecentUrls(loaded);
+  }, []);
 
   // Uploads the file using XMLHttpRequest so we can surface upload progress.
   // Returns the Convex storageId JSON response on success.
@@ -70,9 +87,8 @@ export function UploadTab({
       setUploading(true);
       setProgress(0);
       setError(null);
-      const { uploadUrl, fileId } = await prepareUpload({
+      const { uploadUrl } = await prepareUpload({
         blockId,
-        filename: file.name,
         mime: file.type,
         size: file.size,
       });
@@ -80,13 +96,24 @@ export function UploadTab({
       // See: https://docs.convex.dev/file-storage/upload-files
       const { storageId } = await uploadFileWithProgress(uploadUrl, file, file.type, setProgress);
       // Step 3: Persist the storage id and set the block's icon to this image
-      await finalizeUpload({ blockId, fileId, storageId });
+      const result = await finalizeUpload({
+        blockId,
+        storageId,
+        filename: file.name,
+        mime: file.type,
+        size: file.size,
+      });
+      const url = result?.url;
+      if (url) {
+        // Record the public URL in local recents, deduped and capped.
+        setRecentUrls((prev) => upsertRecent(RECENT_UPLOAD_URLS_KEY, prev, url, RECENT_LIMIT));
+      }
       toast.success('Icon updated');
 
       // Optimistically update parent with a direct URL if available via finalize
       // We don't have the URL from finalize response, but Icon component now prefers url if present on block icon.
       // The parent block should refresh via subscription; invoke callback without waiting.
-      callback?.({ kind: 'image', file_id: fileId } as BlockIcon);
+      callback?.({ kind: 'image', file_id: result.fileId, ...(url ? { url } : {}) } as BlockIcon);
       onDone?.();
     } catch (err) {
       // Extract a readable error message for both toast and inline alert
@@ -99,24 +126,41 @@ export function UploadTab({
     }
   }
 
+  async function handleSelectRecent(url: string) {
+    try {
+      // Move selection to front and persist in localStorage
+      setRecentUrls((prev) => upsertRecent(RECENT_UPLOAD_URLS_KEY, prev, url, RECENT_LIMIT));
+      if (blockId) {
+        await setImageByUrl({ blockId, url });
+      }
+      callback?.({ kind: 'image', url } as BlockIcon);
+      onDone?.();
+    } catch {
+      toast.error('Failed to set image');
+    }
+  }
+
   return (
-    <div className="p-3">
-      <label className="w-full bg-hover hover:bg-secondary/50 rounded-md p-4 flex items-center justify-center cursor-pointer text-muted-foreground-opaque gap-2">
-        <ImageIcon className="size-4" />
-        <span>Upload an image</span>
-        <input
-          type="file"
-          accept="image/png,image/jpeg,image/webp,image/avif"
-          disabled={uploading}
-          className="hidden"
-          ref={inputRef}
-          onChange={(e) => {
-            const file = e.target.files?.[0];
-            if (file) onPickFile(file);
-            e.currentTarget.value = '';
-          }}
-        />
-      </label>
+    <>
+      <div className="px-3 pt-3">
+        <label className="w-full bg-hover hover:bg-secondary/50 rounded-md p-4 flex items-center justify-center cursor-pointer text-muted-foreground-opaque gap-2">
+          <ImageIcon className="size-4" />
+          <span>Upload an image</span>
+          <input
+            type="file"
+            accept="image/png,image/jpeg,image/webp,image/avif"
+            disabled={uploading}
+            className="hidden"
+            ref={inputRef}
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) onPickFile(file);
+              e.currentTarget.value = '';
+            }}
+          />
+        </label>
+      </div>
+
       {uploading && (
         <div className="mt-2" aria-live="polite">
           <div className="h-1.5 w-full rounded bg-muted">
@@ -135,7 +179,28 @@ export function UploadTab({
           {error}
         </div>
       )}
-    </div>
+      {recentUrls.length > 0 && (
+        <Command shouldFilter={false}>
+          <CommandList>
+            <CommandGroup heading="Recent" className="text-inherit">
+              <div className="grid grid-cols-11 gap-0 px-2 pb-3">
+                {recentUrls.slice(0, RECENT_LIMIT).map((url) => (
+                  <button
+                    key={url}
+                    className="hover:bg-hover flex size-8 items-center justify-center rounded p-0.5 cursor-pointer overflow-hidden"
+                    onClick={() => handleSelectRecent(url)}
+                    title={url}
+                  >
+                    {/* Render small preview; avoid Next/Image to minimize overhead here */}
+                    <img src={url} alt="recent upload" className="h-full w-full rounded object-cover" />
+                  </button>
+                ))}
+              </div>
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      )}
+    </>
   );
 }
 

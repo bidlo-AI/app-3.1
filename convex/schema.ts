@@ -177,7 +177,7 @@ export default defineSchema({
   files: defineTable({
     block_id: v.id('blocks'),
     workos_org_id: v.string(),
-    storage_key: v.string(),
+    storage_id: v.id('_storage'),
     name: v.string(),
     mime: v.string(),
     size: v.number(),
