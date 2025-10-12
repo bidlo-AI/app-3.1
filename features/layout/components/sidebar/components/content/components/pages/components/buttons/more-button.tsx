@@ -1,7 +1,9 @@
+'use client';
+
+import { useState } from 'react';
 import { MoreHorizontal } from 'lucide-react';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent } from '@/components/ui/dropdown-menu';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { useState } from 'react';
 import { Switch } from '@/components/utils/switch';
 
 export const MoreMenu = ({

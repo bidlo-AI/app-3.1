@@ -12,8 +12,8 @@ import { pageHashParams } from '@legendapp/state/helpers/pageHashParams';
 import { NewOrganization } from '@/features/auth/organizations/types';
 import { LearnMore } from './learn-more';
 import { NewTeamForm } from './new-team-form';
-import { SubmitButton } from './submit-button';
-// import { NewTeamToast } from '../../toasts/new-team';
+// import { SubmitButton } from './submit-button';
+// // import { NewTeamToast } from '../../toasts/new-team';
 import { batch } from '@legendapp/state';
 import { useMutation } from 'convex/react';
 import { api } from '@/convex/_generated/api';
@@ -21,7 +21,7 @@ import { useCallback } from 'react';
 
 export const AddTeamDialog = () => {
   const open = use$(() => pageHashParams.open.get() === 'true');
-  const loading$ = useObservable(false);
+  // const loading$ = useObservable(false);
   const file$ = useObservable<File | undefined>(undefined);
   const form$ = useObservable<NewOrganization>(emptyTeam);
 
@@ -51,7 +51,7 @@ export const AddTeamDialog = () => {
         <NewTeamForm form$={form$} file$={file$} onSubmit={handleAddTeam} />
         <DialogFooter className="mt-[22px] w-full flex justify-between ">
           <LearnMore />
-          <SubmitButton form$={form$} loading$={loading$} />
+          {/* <SubmitButton form$={form$} loading$={loading$} handleSubmit={await() =>  console.log('submit')} /> */}
         </DialogFooter>
       </DialogContent>
     </Dialog>
