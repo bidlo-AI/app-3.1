@@ -3,12 +3,15 @@
 import { Button } from '@/components/ui/button';
 import { Smile } from 'lucide-react';
 import { Show } from '@legendapp/state/react';
-import { Observable } from '@legendapp/state';
-import type { Doc, Id } from '@/convex/_generated/dataModel';
+import { batch, Observable } from '@legendapp/state';
 import { useMutation } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import { toast } from 'sonner';
 import { useEffect, useState } from 'react';
+import { popOverState$ } from '@/features/layout/providers/popover-state';
+import { uiState$ } from '@/features/layout/providers/ui-state';
+
+import type { Doc, Id } from '@/convex/_generated/dataModel';
 
 // Local alias for the blocks.icon type from Convex schema
 type BlockIcon = Doc<'blocks'>['icon'];
@@ -42,6 +45,11 @@ export const AddIcon = ({ icon, blockId }: { icon: Observable<BlockIcon>; blockI
 
   const handleClick = async () => {
     try {
+      batch(() => {
+        uiState$.iconPicker.tab.set('emoji');
+        popOverState$['block-icon'].open.set(true);
+      });
+
       const all = emojiData ? Object.values(emojiData).flat() : [];
 
       // Fallback to a small curated list if dataset missing for any reason

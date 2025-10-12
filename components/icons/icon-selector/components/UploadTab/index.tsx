@@ -6,7 +6,7 @@ import { useMutation } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import { ImageIcon } from 'lucide-react';
 import { toast } from 'sonner';
-import { BlockIcon } from './IconsTab/types';
+import { BlockIcon } from '../IconsTab/types';
 import { Command, CommandGroup, CommandList } from '@/components/ui/command';
 import { RECENT_LIMIT, loadRecentsFromStorage, upsertRecent } from '@/components/icons/icon-selector/lib';
 

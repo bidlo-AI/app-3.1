@@ -1,8 +1,5 @@
 'use client';
 
-import * as React from 'react';
-import type { Id } from '@/convex/_generated/dataModel';
-
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverTrigger, PopoverContent, PopoverGroup, PopoverSeparator } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
@@ -15,7 +12,11 @@ import { uiState$ } from '@/features/layout/providers/ui-state';
 import { useMutation } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import { toast } from 'sonner';
-import { BlockIcon } from './components/IconsTab/types';
+
+import { popOverState$ } from '@/features/layout/providers/popover-state';
+
+import type { BlockIcon } from './components/IconsTab/types';
+import type { Id } from '@/convex/_generated/dataModel';
 
 type Tab = 'emoji' | 'icons' | 'upload';
 
@@ -24,20 +25,23 @@ export function IconSelector({
   blockId,
   className,
   callback,
+  popoverId,
 }: {
   children: React.ReactNode;
   blockId?: Id<'blocks'>;
   className?: string;
   callback?: (icon: BlockIcon) => void;
+  popoverId?: string;
 }) {
-  const [open, setOpen] = React.useState(false);
+  const pid = popoverId ?? 'block-icon';
+  const open = use$(popOverState$[pid].open) ?? false;
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={(open) => popOverState$[pid].open.set(open)}>
       <PopoverTrigger asChild>
         <div className={cn('inline-flex cursor-pointer', className)}>{children}</div>
       </PopoverTrigger>
-      <Content blockId={blockId} close={() => setOpen(false)} callback={callback} />
+      <Content blockId={blockId} close={() => popOverState$[pid].open.set(false)} callback={callback} />
     </Popover>
   );
 }
