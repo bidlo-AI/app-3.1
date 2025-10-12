@@ -1,5 +1,6 @@
 'use client';
 
+import * as React from 'react';
 import { LazyIcon } from './lazy-icon';
 // import { For, use$ } from '@legendapp/state/react';
 
@@ -9,7 +10,7 @@ type IconGridProps = {
 };
 
 // Reusable grid for rendering icon buttons
-export function IconGrid({ items, onSelect }: IconGridProps) {
+export const IconGrid = React.memo(function IconGrid({ items, onSelect }: IconGridProps) {
   return (
     <div className="grid grid-cols-11 gap-0 px-2">
       {items.map((kebab) => (
@@ -24,4 +25,4 @@ export function IconGrid({ items, onSelect }: IconGridProps) {
       ))}
     </div>
   );
-}
+});

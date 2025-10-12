@@ -9,14 +9,16 @@ import { Button } from '@/components/ui/button';
 import { Command, CommandList, CommandGroup } from '@/components/ui/command';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
-import { ArrowRightLeft, Smile, Leaf, Utensils, Plane, Dumbbell, Package, Hash, Flag, Clock } from 'lucide-react';
-import type { LucideIcon } from 'lucide-react';
+import { ArrowRightLeft } from 'lucide-react';
 import { toast } from 'sonner';
 import { Show, use$, useObservable, useMount } from '@legendapp/state/react';
 import type { Observable } from '@legendapp/state';
 import { SearchInput } from '@/components/icons/icon-selector/components/search-input';
 import { Fades } from '@/components/icons/icon-selector/components/IconsTab/compoents/fades';
-import { BlockIcon } from './IconsTab/types';
+import { BlockIcon } from '../IconsTab/types';
+import BottomSectionsBar from '@/components/icons/icon-selector/components/BottomSectionsBar';
+import type { CategoryKey } from './types';
+import { CATEGORY_ORDER, LABEL_TO_KEY } from './lib';
 
 // Large dataset of emojis organized by category (ships with emoji-picker-react)
 // Minimal fields used: names (n), unified (u), variations (v)
@@ -36,45 +38,9 @@ const SEARCH_DEBOUNCE_MS = 120;
 const SCROLL_THRESHOLD_PX = 16;
 
 // Emoji categories to display in order with friendly labels
-type CategoryKey =
-  | 'smileys_people'
-  | 'animals_nature'
-  | 'food_drink'
-  | 'travel_places'
-  | 'activities'
-  | 'objects'
-  | 'symbols'
-  | 'flags';
-const CATEGORY_ORDER: { key: CategoryKey; label: string }[] = [
-  { key: 'smileys_people', label: 'People' },
-  { key: 'animals_nature', label: 'Animals & Nature' },
-  { key: 'food_drink', label: 'Food & Drink' },
-  { key: 'travel_places', label: 'Travel & Places' },
-  { key: 'activities', label: 'Activities' },
-  { key: 'objects', label: 'Objects' },
-  { key: 'symbols', label: 'Symbols' },
-  { key: 'flags', label: 'Flags' },
-];
+// CATEGORY_ORDER and LABEL_TO_KEY imported from './lib'
 
-const LABEL_TO_KEY: Record<string, CategoryKey> = CATEGORY_ORDER.reduce(
-  (acc, { key, label }) => {
-    acc[label] = key;
-    return acc;
-  },
-  {} as Record<string, CategoryKey>,
-);
-
-const ICON_MAP: Record<'recent' | CategoryKey, LucideIcon> = {
-  recent: Clock,
-  smileys_people: Smile,
-  animals_nature: Leaf,
-  food_drink: Utensils,
-  travel_places: Plane,
-  activities: Dumbbell,
-  objects: Package,
-  symbols: Hash,
-  flags: Flag,
-};
+// BottomSectionsBar handles icon map locally to minimize dependencies here
 
 type EmojiData = { n: string[]; u: string; v?: string[] };
 type SkinToneKey = 'neutral' | '1f3fb' | '1f3fc' | '1f3fd' | '1f3fe' | '1f3ff';
@@ -99,8 +65,9 @@ const withSkinToneUnified = (emoji: EmojiData, skinTone: string | 'neutral') => 
 };
 
 // Native-emoji renderer: renders the Unicode glyph directly for fast, no-network display
-function NativeEmoji({ unified, label }: { unified: string; label: string }) {
-  const char = fromUnified(unified);
+const NativeEmoji = React.memo(function NativeEmoji({ unified, label }: { unified: string; label: string }) {
+  // Compute the display character once per unified change
+  const char = React.useMemo(() => fromUnified(unified), [unified]);
   return (
     <span
       aria-label={label}
@@ -110,7 +77,7 @@ function NativeEmoji({ unified, label }: { unified: string; label: string }) {
       {char}
     </span>
   );
-}
+});
 
 // Skin tone selector
 const SKIN_TONES: Array<{ key: SkinToneKey; label: string }> = [
@@ -123,12 +90,10 @@ const SKIN_TONES: Array<{ key: SkinToneKey; label: string }> = [
 ];
 
 function SkinToneSelector({ value, onChange }: { value: SkinToneKey; onChange: (v: SkinToneKey) => void }) {
-  // Right-hand glyph preview (👉) for the trigger reflects the current skin tone
   const [open, setOpen] = React.useState(false);
   const unified = value === 'neutral' ? '270B' : `270B-${value}`;
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      {/* Tooltip wraps only the trigger to avoid hover conflicts with popover content */}
       <Tooltip>
         <TooltipTrigger asChild>
           <PopoverTrigger asChild>
@@ -140,7 +105,6 @@ function SkinToneSelector({ value, onChange }: { value: SkinToneKey; onChange: (
         <TooltipContent side="bottom">Select skin tone</TooltipContent>
       </Tooltip>
       <PopoverContent align="start" className="w-auto">
-        {/* Row of right-hand emojis in each skin tone */}
         <div className="flex items-center gap-1 p-1">
           {SKIN_TONES.map((t) => {
             const u = t.key === 'neutral' ? '270B' : `270B-${t.key}`;
@@ -189,6 +153,7 @@ export function EmojiTab({
     visibleCount: INITIAL_VISIBLE,
     hasMore: () => state$.visibleCount.get() < state$.filteredAllCount.get(),
     currentSection: null as null | ('recent' | CategoryKey),
+    hasRecent: () => state$.filteredRecent.get().length > 0,
     // Derived sets
     filteredAllGroups: () => {
       const q = normalize(state$.debouncedQuery.get());
@@ -267,29 +232,31 @@ export function EmojiTab({
     };
   }, [search$]);
 
-  const handleRecordRecent = (unified: string) =>
-    state$.recentList.set((prev) => {
-      const withoutDupes = prev.filter((u) => u !== unified);
-      const next = [unified, ...withoutDupes].slice(0, RECENT_LIMIT);
-      if (typeof window !== 'undefined') window.localStorage.setItem(RECENT_EMOJIS_KEY, JSON.stringify(next));
-      return next;
-    });
-
   const handleToneChange = (tone: SkinToneKey) => {
     state$.skinTone.set(tone);
     if (typeof window !== 'undefined') window.localStorage.setItem(SKIN_TONE_KEY, tone);
   };
 
-  const handleSelect = async (unified: string) => {
-    handleRecordRecent(unified);
-    const emojiStr = fromUnified(unified);
-    if (blockId) {
-      void setEmoji({ blockId, emoji: emojiStr }).catch(() => toast.error('Failed to set emoji'));
-      callback?.({ emoji: emojiStr, kind: 'emoji' });
-    }
-    close();
-    search$.set('');
-  };
+  // Stable selection handler to avoid re-renders in memoized children
+  const handleSelect = React.useCallback(
+    async (unified: string) => {
+      // Update recents (dedupe + persist)
+      state$.recentList.set((prev) => {
+        const withoutDupes = prev.filter((u) => u !== unified);
+        const next = [unified, ...withoutDupes].slice(0, RECENT_LIMIT);
+        if (typeof window !== 'undefined') window.localStorage.setItem(RECENT_EMOJIS_KEY, JSON.stringify(next));
+        return next;
+      });
+      const emojiStr = fromUnified(unified);
+      if (blockId) {
+        void setEmoji({ blockId, emoji: emojiStr }).catch(() => toast.error('Failed to set emoji'));
+        callback?.({ emoji: emojiStr, kind: 'emoji' });
+      }
+      close();
+      search$.set('');
+    },
+    [blockId, setEmoji, callback, close, search$, state$],
+  );
 
   const pickRandomUnified = () => {
     const groups = state$.filteredAllGroups.get();
@@ -324,6 +291,7 @@ export function EmojiTab({
     flags: null,
   });
   const pendingScrollRef = useRef<null | ('recent' | CategoryKey)>(null);
+  const scrollRafIdRef = useRef<number | null>(null);
 
   const scrollContainerTo = (el: HTMLElement) => {
     const c = listRef.current;
@@ -353,6 +321,14 @@ export function EmojiTab({
     tryScrollIfPending();
     updateActiveByScroll();
   }, [groupsLimited, filteredRecent]);
+
+  // Cleanup any pending rAF when unmounting
+  useEffect(() => {
+    return () => {
+      const id = scrollRafIdRef.current;
+      if (id !== null) cancelAnimationFrame(id);
+    };
+  }, []);
 
   const handleScrollToSection = (section: 'recent' | CategoryKey) => {
     // Ensure the target section exists in the DOM, expanding visible items if needed
@@ -408,6 +384,25 @@ export function EmojiTab({
     state$.currentSection.set(active);
   };
 
+  // rAF-throttled scroll handler to reduce layout thrash and improve smoothness
+  const onScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    if (scrollRafIdRef.current !== null) return;
+    const t = e.currentTarget;
+    scrollRafIdRef.current = requestAnimationFrame(() => {
+      scrollRafIdRef.current = null;
+      const distanceFromBottom = t.scrollHeight - (t.scrollTop + t.clientHeight);
+      if (distanceFromBottom <= SCROLL_THRESHOLD_PX && state$.hasMore.get()) {
+        const now = Date.now();
+        const last = lastLoadMoreAtRef.current;
+        if (now - last >= LOAD_MORE_DEBOUNCE_MS) {
+          lastLoadMoreAtRef.current = now;
+          state$.visibleCount.set((prev) => prev + PAGE_SIZE);
+        }
+      }
+      updateActiveByScroll();
+    });
+  };
+
   return (
     <div className="">
       <Command shouldFilter={false}>
@@ -426,22 +421,7 @@ export function EmojiTab({
           </div>
         </div>
         <div className="relative pt-1">
-          <CommandList
-            ref={listRef as unknown as React.Ref<HTMLDivElement>}
-            onScroll={(e) => {
-              const t = e.currentTarget;
-              const distanceFromBottom = t.scrollHeight - (t.scrollTop + t.clientHeight);
-              if (distanceFromBottom <= SCROLL_THRESHOLD_PX && state$.hasMore.get()) {
-                const now = Date.now();
-                const last = lastLoadMoreAtRef.current;
-                if (now - last >= LOAD_MORE_DEBOUNCE_MS) {
-                  lastLoadMoreAtRef.current = now;
-                  state$.visibleCount.set((prev) => prev + PAGE_SIZE);
-                }
-              }
-              updateActiveByScroll();
-            }}
-          >
+          <CommandList ref={listRef as unknown as React.Ref<HTMLDivElement>} onScroll={onScroll}>
             <Show if={() => state$.filteredAllCount.get() === 0}>
               <div className="py-6 text-center text-sm text-muted-foreground">No results</div>
             </Show>
@@ -471,51 +451,24 @@ export function EmojiTab({
           <Fades />
         </div>
       </Command>
-      {/* Bottom sections bar */}
-      <div className=" border-t py-2 px-3 flex items-center justify-between gap-1 overflow-x-auto">
-        {filteredRecent.length > 0 && (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                aria-label="Recent"
-                className={`text-muted-foreground ${currentSection === 'recent' ? 'bg-hover' : ''}`}
-                onClick={() => handleScrollToSection('recent')}
-              >
-                <Clock className="size-5" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="top">Recent</TooltipContent>
-          </Tooltip>
-        )}
-        {groupsAll.map((g) => {
-          const Icon = ICON_MAP[g.key];
-          return (
-            <Tooltip key={g.key}>
-              <TooltipTrigger asChild>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  aria-label={g.label}
-                  className={`text-muted-foreground size-8 ${currentSection === g.key ? 'bg-hover' : ''}`}
-                  onClick={() => handleScrollToSection(g.key)}
-                >
-                  <Icon className="size-5" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="top">{g.label}</TooltipContent>
-            </Tooltip>
-          );
-        })}
-      </div>
+      {/* Bottom sections bar extracted for reuse and clarity */}
+      <BottomSectionsBar
+        hasRecent$={state$.hasRecent}
+        currentSection={currentSection}
+        groups={groupsAll.map((g) => ({ key: g.key, label: g.label }))}
+        onScrollToSection={handleScrollToSection}
+      />
     </div>
   );
 }
 
-function EmojiGrid({ items, onSelect }: { items: string[]; onSelect: (unified: string) => void }) {
+const EmojiGrid = React.memo(function EmojiGrid({
+  items,
+  onSelect,
+}: {
+  items: string[];
+  onSelect: (unified: string) => void;
+}) {
   return (
     <div className="grid grid-cols-11 gap-0 px-2">
       {items.map((unified) => (
@@ -530,6 +483,6 @@ function EmojiGrid({ items, onSelect }: { items: string[]; onSelect: (unified: s
       ))}
     </div>
   );
-}
+});
 
 export default EmojiTab;

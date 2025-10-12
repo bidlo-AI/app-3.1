@@ -2,7 +2,7 @@
 
 import { toast } from 'sonner';
 import { Fades } from './compoents/fades';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
 import { useMutation } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import { IconGrid } from './compoents/icon-grid';
@@ -103,25 +103,27 @@ export function IconsTab({
   }, [search$]);
 
   // handlers
-  const handleRecordRecent = (key: string) =>
-    state$.recentList.set((prev) => {
-      const normalized = normalizeKey(key);
-      const withoutDupes = prev.filter((k) => k !== normalized);
-      const next = [normalized, ...withoutDupes].slice(0, RECENT_LIMIT);
-      if (typeof window !== 'undefined') window.localStorage.setItem(RECENT_ICONS_KEY, JSON.stringify(next));
-      return next;
-    });
-  const handleSelect = async (key: string) => {
-    if (!state$.keyExists(key)) return toast.error('Icon not found');
-    handleRecordRecent(key);
-    if (blockId) {
-      const c = uiState$.iconPicker.iconColor.get();
-      void setPreset({ blockId, key, style: 'line', color: c }).catch(() => toast.error('Failed to set icon'));
-      callback?.({ key, style: 'line', color: c, kind: 'preset' });
-    }
-    close();
-    search$.set('');
-  };
+  const handleSelect = useCallback(
+    async (key: string) => {
+      if (!state$.keyExists(key)) return toast.error('Icon not found');
+      // Record recent with dedupe + persist
+      state$.recentList.set((prev) => {
+        const normalized = normalizeKey(key);
+        const withoutDupes = prev.filter((k) => k !== normalized);
+        const next = [normalized, ...withoutDupes].slice(0, RECENT_LIMIT);
+        if (typeof window !== 'undefined') window.localStorage.setItem(RECENT_ICONS_KEY, JSON.stringify(next));
+        return next;
+      });
+      if (blockId) {
+        const c = uiState$.iconPicker.iconColor.get();
+        void setPreset({ blockId, key, style: 'line', color: c }).catch(() => toast.error('Failed to set icon'));
+        callback?.({ key, style: 'line', color: c, kind: 'preset' });
+      }
+      close();
+      search$.set('');
+    },
+    [blockId, setPreset, callback, close, search$, state$],
+  );
 
   // Random selection from the entire filtered set (O(1) selection, no extra allocations)
   const pickRandomKey = () => {
@@ -137,6 +139,7 @@ export function IconsTab({
 
   // Keep load-more debounce state in a ref to avoid mutating DOM
   const lastLoadMoreAtRef = useRef(0);
+  const scrollRafIdRef = useRef<number | null>(null);
   const filteredRecent = use$(state$.filteredRecent);
   const iconsToShow = use$(state$.iconsToShow);
   const color = use$(uiState$.iconPicker.iconColor);
@@ -148,16 +151,20 @@ export function IconsTab({
         <div className={cn('relative pt-1 pb-2', color === 'default' ? 'text-foreground' : `text-${color}`)}>
           <CommandList
             onScroll={(e) => {
+              if (scrollRafIdRef.current !== null) return;
               const t = e.currentTarget;
-              const distanceFromBottom = t.scrollHeight - (t.scrollTop + t.clientHeight);
-              if (distanceFromBottom <= SCROLL_THRESHOLD_PX && state$.hasMore.get()) {
-                const now = Date.now();
-                const last = lastLoadMoreAtRef.current;
-                if (now - last >= LOAD_MORE_DEBOUNCE_MS) {
-                  lastLoadMoreAtRef.current = now;
-                  state$.visibleCount.set((prev) => prev + PAGE_SIZE);
+              scrollRafIdRef.current = requestAnimationFrame(() => {
+                scrollRafIdRef.current = null;
+                const distanceFromBottom = t.scrollHeight - (t.scrollTop + t.clientHeight);
+                if (distanceFromBottom <= SCROLL_THRESHOLD_PX && state$.hasMore.get()) {
+                  const now = Date.now();
+                  const last = lastLoadMoreAtRef.current;
+                  if (now - last >= LOAD_MORE_DEBOUNCE_MS) {
+                    lastLoadMoreAtRef.current = now;
+                    state$.visibleCount.set((prev) => prev + PAGE_SIZE);
+                  }
                 }
-              }
+              });
             }}
           >
             <Empty show$={state$.noResults} search$={search$} />
