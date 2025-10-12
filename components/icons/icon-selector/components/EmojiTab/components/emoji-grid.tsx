@@ -2,6 +2,8 @@
 
 import * as React from 'react';
 import { fromUnified } from '../lib';
+import * as TooltipPrimitive from '@radix-ui/react-tooltip';
+import { TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 
 const NativeEmoji = React.memo(function NativeEmoji({ unified, label }: { unified: string; label: string }) {
   const char = React.useMemo(() => fromUnified(unified), [unified]);
@@ -19,22 +21,32 @@ const NativeEmoji = React.memo(function NativeEmoji({ unified, label }: { unifie
 export const EmojiGrid = React.memo(function EmojiGrid({
   items,
   onSelect,
+  getLabel,
 }: {
   items: string[];
   onSelect: (unified: string) => void;
+  // Optional resolver to display human names; falls back to the emoji char
+  getLabel?: (unified: string) => string;
 }) {
   return (
     <div className="grid grid-cols-11 gap-0 px-2">
-      {items.map((unified) => (
-        <button
-          key={unified}
-          className="hover:bg-hover flex size-8 items-center justify-center rounded p-1 cursor-pointer"
-          onClick={() => onSelect(unified)}
-          title={fromUnified(unified)}
-        >
-          <NativeEmoji unified={unified} label="emoji" />
-        </button>
-      ))}
+      {items.map((unified) => {
+        const label = getLabel ? getLabel(unified) : fromUnified(unified);
+        return (
+          <TooltipPrimitive.Root key={unified}>
+            <TooltipTrigger asChild>
+              <button
+                className="hover:bg-hover flex size-8 items-center justify-center rounded p-1 cursor-pointer"
+                onClick={() => onSelect(unified)}
+                aria-label={label}
+              >
+                <NativeEmoji unified={unified} label={label} />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent className="capitalize">{label}</TooltipContent>
+          </TooltipPrimitive.Root>
+        );
+      })}
     </div>
   );
 });

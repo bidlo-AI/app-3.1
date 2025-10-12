@@ -2,6 +2,8 @@
 
 import { useEffect, memo, useRef, useState } from 'react';
 import { LazyIcon } from './lazy-icon';
+import * as TooltipPrimitive from '@radix-ui/react-tooltip';
+import { TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 // import { For, use$ } from '@legendapp/state/react';
 
 type IconGridProps = {
@@ -75,14 +77,17 @@ export const IconGrid = memo(function IconGrid({ items, onSelect }: IconGridProp
         style={{ transform: `translateY(${offsetTop}px)` }}
       >
         {slice.map((kebab) => (
-          <button
-            key={kebab}
-            className="hover:bg-hover flex size-8 items-center justify-center rounded p-1 cursor-pointer"
-            onClick={() => onSelect(kebab)}
-            title={kebab}
-          >
-            <LazyIcon kebab={kebab} />
-          </button>
+          <TooltipPrimitive.Root key={kebab}>
+            <TooltipTrigger asChild>
+              <button
+                className="hover:bg-hover flex size-8 items-center justify-center rounded p-1 cursor-pointer"
+                onClick={() => onSelect(kebab)}
+              >
+                <LazyIcon kebab={kebab} />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent className="capitalize">{kebab.replace(/-/g, ' ')}</TooltipContent>
+          </TooltipPrimitive.Root>
         ))}
       </div>
     </div>

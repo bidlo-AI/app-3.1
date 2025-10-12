@@ -26,6 +26,7 @@ import {
 import { Empty } from './compoents/empty';
 import { cn } from '@/lib/utils';
 import { uiState$ } from '@/features/layout/providers/ui-state';
+import { TooltipProvider } from '@/components/ui/tooltip';
 
 import type { Observable } from '@legendapp/state';
 import type { BlockIcon, IconMeta } from './types';
@@ -134,39 +135,41 @@ export function IconsTab({
   const color = use$(uiState$.iconPicker.iconColor);
 
   return (
-    <div className="">
-      <Command shouldFilter={false}>
-        <Header search$={search$} onRandom={handleRandom} color$={uiState$.iconPicker.iconColor} />
-        <div className={cn('relative pt-1 pb-2', color === 'default' ? 'text-foreground' : `text-${color}`)}>
-          <CommandList
-            onScroll={(e) => {
-              if (scrollRafIdRef.current !== null) return;
-              const t = e.currentTarget;
-              scrollRafIdRef.current = requestAnimationFrame(() => {
-                scrollRafIdRef.current = null;
-                const distanceFromBottom = t.scrollHeight - (t.scrollTop + t.clientHeight);
-                if (distanceFromBottom <= SCROLL_THRESHOLD_PX && state$.hasMore.get()) {
-                  state$.visibleCount.set((prev) => prev + PAGE_SIZE);
-                }
-              });
-            }}
-          >
-            <Empty show$={state$.noResults} search$={search$} />
-            <Show if={state$.showRecent}>
-              <CommandGroup heading="Recent" className="text-inherit">
-                <IconGrid items={filteredRecent} onSelect={handleSelect} />
-              </CommandGroup>
-            </Show>
-            <Show if={state$.showIcons}>
-              <CommandGroup heading="Icons" className="text-inherit">
-                <IconGrid items={iconsToShow} onSelect={handleSelect} />
-              </CommandGroup>
-            </Show>
-          </CommandList>
-          <Fades />
-        </div>
-      </Command>
-    </div>
+    <TooltipProvider delayDuration={200}>
+      <div className="">
+        <Command shouldFilter={false}>
+          <Header search$={search$} onRandom={handleRandom} color$={uiState$.iconPicker.iconColor} />
+          <div className={cn('relative pt-1 pb-2', color === 'default' ? 'text-foreground' : `text-${color}`)}>
+            <CommandList
+              onScroll={(e) => {
+                if (scrollRafIdRef.current !== null) return;
+                const t = e.currentTarget;
+                scrollRafIdRef.current = requestAnimationFrame(() => {
+                  scrollRafIdRef.current = null;
+                  const distanceFromBottom = t.scrollHeight - (t.scrollTop + t.clientHeight);
+                  if (distanceFromBottom <= SCROLL_THRESHOLD_PX && state$.hasMore.get()) {
+                    state$.visibleCount.set((prev) => prev + PAGE_SIZE);
+                  }
+                });
+              }}
+            >
+              <Empty show$={state$.noResults} search$={search$} />
+              <Show if={state$.showRecent}>
+                <CommandGroup heading="Recent" className="text-inherit">
+                  <IconGrid items={filteredRecent} onSelect={handleSelect} />
+                </CommandGroup>
+              </Show>
+              <Show if={state$.showIcons}>
+                <CommandGroup heading="Icons" className="text-inherit">
+                  <IconGrid items={iconsToShow} onSelect={handleSelect} />
+                </CommandGroup>
+              </Show>
+            </CommandList>
+            <Fades />
+          </div>
+        </Command>
+      </div>
+    </TooltipProvider>
   );
 }
 

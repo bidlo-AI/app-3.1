@@ -4,11 +4,14 @@ import * as React from 'react';
 import type { Id } from '@/convex/_generated/dataModel';
 import { useMutation } from 'convex/react';
 import { api } from '@/convex/_generated/api';
-import { ImageIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import { BlockIcon } from '../IconsTab/types';
-import { Command, CommandGroup, CommandList } from '@/components/ui/command';
 import { RECENT_LIMIT, loadRecentsFromStorage, upsertRecent } from '@/components/icons/icon-selector/lib';
+import { RECENT_UPLOAD_URLS_KEY, uploadFileWithProgress } from './lib';
+import { UploadButton } from './components/upload-button';
+import { ProgressBar } from './components/progress-bar';
+import { ErrorAlert } from './components/error-alert';
+import { RecentGrid } from './components/recent-grid';
 
 export function UploadTab({
   blockId,
@@ -22,13 +25,11 @@ export function UploadTab({
   const [uploading, setUploading] = React.useState(false);
   const [progress, setProgress] = React.useState(0);
   const [error, setError] = React.useState<string | null>(null);
-  const inputRef = React.useRef<HTMLInputElement | null>(null);
   const prepareUpload = useMutation(api.icons.prepareUploadPageIcon);
   const finalizeUpload = useMutation(api.icons.finalizeUploadPageIcon);
   const setImageByUrl = useMutation(api.icons.setPageIconImageUrl);
 
   // Local recents are public image URLs (not files) so we avoid re-uploading.
-  const RECENT_UPLOAD_URLS_KEY = 'upload_urls:recent';
   const [recentUrls, setRecentUrls] = React.useState<string[]>([]);
 
   React.useEffect(() => {
@@ -40,41 +41,6 @@ export function UploadTab({
     );
     if (loaded.length) setRecentUrls(loaded);
   }, []);
-
-  // Uploads the file using XMLHttpRequest so we can surface upload progress.
-  // Returns the Convex storageId JSON response on success.
-  async function uploadFileWithProgress(
-    url: string,
-    file: File,
-    contentType: string,
-    onProgress: (percent: number) => void,
-  ): Promise<{ storageId: Id<'_storage'> }> {
-    return new Promise((resolve, reject) => {
-      const xhr = new XMLHttpRequest();
-      xhr.open('POST', url);
-      xhr.setRequestHeader('Content-Type', contentType);
-      xhr.upload.onprogress = (event) => {
-        if (event.lengthComputable) {
-          const percent = Math.round((event.loaded / event.total) * 100);
-          onProgress(percent);
-        }
-      };
-      xhr.onload = () => {
-        if (xhr.status >= 200 && xhr.status < 300) {
-          try {
-            const json = JSON.parse(xhr.responseText) as { storageId: Id<'_storage'> };
-            resolve(json);
-          } catch (err) {
-            reject(err);
-          }
-        } else {
-          reject(new Error('Upload failed'));
-        }
-      };
-      xhr.onerror = () => reject(new Error('Upload failed'));
-      xhr.send(file);
-    });
-  }
 
   const onPickFile = React.useCallback(
     async (file: File) => {
@@ -206,64 +172,13 @@ export function UploadTab({
   return (
     <>
       <div className="px-3 pt-3">
-        <label className="w-full bg-hover hover:bg-secondary/50 rounded-md p-4 flex items-center justify-center cursor-pointer text-muted-foreground-opaque gap-2">
-          <ImageIcon className="size-4" />
-          <span>Upload an image</span>
-          <input
-            type="file"
-            accept="image/png,image/jpeg,image/webp,image/avif"
-            disabled={uploading}
-            className="hidden"
-            ref={inputRef}
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) onPickFile(file);
-              e.currentTarget.value = '';
-            }}
-          />
-        </label>
+        <UploadButton disabled={uploading} onSelect={(file) => void onPickFile(file)} />
         <p className="text-center text-xs text-muted-foreground-opaque mt-2">or ⌘+V to paste an image or link</p>
       </div>
 
-      {uploading && (
-        <div className="mt-2" aria-live="polite">
-          <div className="h-1.5 w-full rounded bg-muted">
-            <div
-              className="h-1.5 rounded bg-primary transition-[width]"
-              style={{ width: `${Math.min(progress, 100)}%` }}
-            />
-          </div>
-        </div>
-      )}
-      {!uploading && error && (
-        <div
-          className="mt-2 rounded-md border border-destructive bg-destructive/10 p-2 text-xs text-destructive"
-          role="alert"
-        >
-          {error}
-        </div>
-      )}
-      {recentUrls.length > 0 && (
-        <Command shouldFilter={false}>
-          <CommandList>
-            <CommandGroup heading="Recent" className="text-inherit">
-              <div className="grid grid-cols-11 gap-0 px-2 pb-3">
-                {recentUrls.slice(0, RECENT_LIMIT).map((url) => (
-                  <button
-                    key={url}
-                    className="hover:bg-hover flex size-8 items-center justify-center rounded p-0.5 cursor-pointer overflow-hidden"
-                    onClick={() => handleSelectRecent(url)}
-                    title={url}
-                  >
-                    {/* Render small preview; avoid Next/Image to minimize overhead here */}
-                    <img src={url} alt="recent upload" className="h-full w-full rounded object-cover" />
-                  </button>
-                ))}
-              </div>
-            </CommandGroup>
-          </CommandList>
-        </Command>
-      )}
+      {uploading && <ProgressBar percent={progress} />}
+      <ErrorAlert message={!uploading && error ? error : ''} />
+      <RecentGrid urls={recentUrls.slice(0, RECENT_LIMIT)} onSelect={(url) => void handleSelectRecent(url)} />
     </>
   );
 }
