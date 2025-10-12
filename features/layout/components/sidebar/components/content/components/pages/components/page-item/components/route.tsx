@@ -31,7 +31,7 @@ export const Route = ({
       >
         <span className="relative inline-flex items-center justify-center size-5 shrink-0">
           {icon ? (
-            <BlockIcon icon={icon} title={title} className="size-5 group-hover/list-row:opacity-0" />
+            <BlockIcon icon={icon} title={title} size={20} className="group-hover/list-row:opacity-0" />
           ) : (
             <FileText className="size-5 group-hover/list-row:opacity-0 text-muted-foreground-opaque" />
           )}

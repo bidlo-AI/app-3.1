@@ -72,5 +72,5 @@ export const Hero = ({ preloaded }: { preloaded: Preloaded<typeof api.blocks.get
 const IconContent = ({ icon$, title$ }: { icon$: Observable<BlockIcon>; title$: Observable<string> }) => {
   const icon = use$(icon$);
   const title = use$(title$);
-  return <Icon icon={icon} title={title} className="size-9 ml-[-3px] mt-1 mr-2 rounded-md hover:bg-hover" />;
+  return <Icon icon={icon} title={title} size={36} className="ml-[-3px] mt-1 mr-2 rounded-md hover:bg-hover" />;
 };
