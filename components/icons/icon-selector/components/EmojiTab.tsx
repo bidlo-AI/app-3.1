@@ -16,6 +16,7 @@ import type { Observable } from '@legendapp/state';
 import { SearchInput } from '@/components/icons/icon-selector/components/search-input';
 import { Fades } from '@/components/icons/icon-selector/components/IconsTab/compoents/fades';
 import { cn } from '@/lib/utils';
+import { BlockIcon } from './IconsTab/types';
 
 // Large dataset of emojis organized by category (ships with emoji-picker-react)
 // Minimal fields used: names (n), unified (u), variations (v)
@@ -45,7 +46,7 @@ type CategoryKey =
   | 'symbols'
   | 'flags';
 const CATEGORY_ORDER: { key: CategoryKey; label: string }[] = [
-  { key: 'smileys_people', label: 'Smileys & People' },
+  { key: 'smileys_people', label: 'People' },
   { key: 'animals_nature', label: 'Animals & Nature' },
   { key: 'food_drink', label: 'Food & Drink' },
   { key: 'travel_places', label: 'Travel & Places' },
@@ -148,13 +149,14 @@ export function EmojiTab({
   blockId,
   close,
   search$,
+  callback,
 }: {
   blockId?: Id<'blocks'>;
   close: () => void;
   search$: Observable<string>;
+  callback?: (icon: BlockIcon) => void;
 }) {
   const setEmoji = useMutation(api.icons.setPageIconEmoji);
-
   const state$ = useObservable({
     data: null as null | Record<CategoryKey, EmojiData[]>,
     recentList: [] as string[], // unified w/ tone if applied
@@ -258,15 +260,14 @@ export function EmojiTab({
   };
 
   const handleSelect = async (unified: string) => {
-    try {
-      handleRecordRecent(unified);
-      const emojiStr = fromUnified(unified);
-      if (blockId) setEmoji({ blockId, emoji: emojiStr });
-      close();
-      search$.set('');
-    } catch {
-      toast.error('Failed to set emoji');
+    handleRecordRecent(unified);
+    const emojiStr = fromUnified(unified);
+    if (blockId) {
+      void setEmoji({ blockId, emoji: emojiStr }).catch(() => toast.error('Failed to set emoji'));
+      callback?.({ emoji: emojiStr, kind: 'emoji' });
     }
+    close();
+    search$.set('');
   };
 
   const pickRandomUnified = () => {
@@ -281,13 +282,10 @@ export function EmojiTab({
     if (u) void handleSelect(u);
   };
 
-  // Split visibleCount across groups in order to avoid rendering everything at once
   const groupsLimited = use$(state$.groupsLimited);
-
   const lastLoadMoreAtRef = useRef(0);
   const filteredRecent = use$(state$.filteredRecent);
   const skinTone = use$(state$.skinTone);
-  // No tooltip wrapper here; SkinToneSelector handles its own tooltip on the trigger only
 
   return (
     <div className="">

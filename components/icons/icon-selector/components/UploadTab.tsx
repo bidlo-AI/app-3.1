@@ -8,8 +8,17 @@ import { Button } from '@/components/ui/button';
 import { Upload } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { BlockIcon } from './IconsTab/types';
 
-export function UploadTab({ blockId, onDone }: { blockId?: Id<'blocks'>; onDone?: () => void }) {
+export function UploadTab({
+  blockId,
+  onDone,
+  callback,
+}: {
+  blockId?: Id<'blocks'>;
+  onDone?: () => void;
+  callback?: (icon: BlockIcon) => void;
+}) {
   const [uploading, setUploading] = React.useState(false);
   const prepareUpload = useMutation(api.icons.prepareUploadPageIcon);
   const finalizeUpload = useMutation(api.icons.finalizeUploadPageIcon);
@@ -32,6 +41,7 @@ export function UploadTab({ blockId, onDone }: { blockId?: Id<'blocks'>; onDone?
       if (!res.ok) throw new Error('Upload failed');
       await finalizeUpload({ blockId, fileId });
       toast.success('Icon updated');
+
       onDone?.();
     } catch {
       toast.error('Upload failed');

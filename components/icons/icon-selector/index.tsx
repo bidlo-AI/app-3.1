@@ -15,6 +15,7 @@ import { uiState$ } from '@/features/layout/providers/ui-state';
 import { useMutation } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import { toast } from 'sonner';
+import { BlockIcon } from './components/IconsTab/types';
 
 type Tab = 'emoji' | 'icons' | 'upload';
 
@@ -22,10 +23,12 @@ export function IconSelector({
   children,
   blockId,
   className,
+  callback,
 }: {
   children: React.ReactNode;
   blockId?: Id<'blocks'>;
   className?: string;
+  callback?: (icon: BlockIcon) => void;
 }) {
   const [open, setOpen] = React.useState(false);
 
@@ -34,12 +37,20 @@ export function IconSelector({
       <PopoverTrigger asChild>
         <div className={cn('inline-flex cursor-pointer', className)}>{children}</div>
       </PopoverTrigger>
-      <Content blockId={blockId} close={() => setOpen(false)} />
+      <Content blockId={blockId} close={() => setOpen(false)} callback={callback} />
     </Popover>
   );
 }
 
-const Content = ({ blockId, close }: { blockId?: Id<'blocks'>; close: () => void }) => {
+const Content = ({
+  blockId,
+  close,
+  callback,
+}: {
+  blockId?: Id<'blocks'>;
+  close: () => void;
+  callback?: (icon: BlockIcon) => void;
+}) => {
   const clearIcon = useMutation(api.icons.clearPageIcon);
   const search$ = useObservable('');
 
@@ -49,6 +60,7 @@ const Content = ({ blockId, close }: { blockId?: Id<'blocks'>; close: () => void
     try {
       if (blockId) clearIcon({ blockId });
       search$.set('');
+      callback?.(undefined);
       close();
     } catch {
       toast.error('Failed to remove icon');
@@ -72,9 +84,9 @@ const Content = ({ blockId, close }: { blockId?: Id<'blocks'>; close: () => void
       <PopoverSeparator />
       <Switch value={uiState$.iconPicker.tab}>
         {{
-          emoji: () => <EmojiTab blockId={blockId} search$={search$} close={close} />,
-          icons: () => <IconsTab blockId={blockId} search$={search$} close={close} />,
-          upload: () => <UploadTab blockId={blockId} onDone={close} />,
+          emoji: () => <EmojiTab blockId={blockId} search$={search$} close={close} callback={callback} />,
+          icons: () => <IconsTab blockId={blockId} search$={search$} close={close} callback={callback} />,
+          upload: () => <UploadTab blockId={blockId} onDone={close} callback={callback} />,
         }}
       </Switch>
     </PopoverContent>

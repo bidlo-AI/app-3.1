@@ -17,7 +17,7 @@ import { cn } from '@/lib/utils';
 import { uiState$ } from '@/features/layout/providers/ui-state';
 
 import type { Observable } from '@legendapp/state';
-import type { IconMeta } from './types';
+import type { BlockIcon, IconMeta } from './types';
 import type { Id } from '@/convex/_generated/dataModel';
 
 const RECENT_ICONS_KEY = 'icons:recent';
@@ -32,10 +32,12 @@ export function IconsTab({
   blockId,
   close,
   search$,
+  callback,
 }: {
   blockId?: Id<'blocks'>;
   close: () => void;
   search$: Observable<string>;
+  callback?: (icon: BlockIcon) => void;
 }) {
   const setPreset = useMutation(api.icons.setPageIconPreset);
   const state$ = useObservable({
@@ -111,17 +113,14 @@ export function IconsTab({
     });
   const handleSelect = async (key: string) => {
     if (!state$.keyExists(key)) return toast.error('Icon not found');
-    try {
-      handleRecordRecent(key);
-      if (blockId) {
-        const c = uiState$.iconPicker.iconColor.get();
-        setPreset({ blockId, key, style: 'line', color: c });
-      }
-      close();
-      search$.set('');
-    } catch {
-      toast.error('Failed to set icon');
+    handleRecordRecent(key);
+    if (blockId) {
+      const c = uiState$.iconPicker.iconColor.get();
+      void setPreset({ blockId, key, style: 'line', color: c }).catch(() => toast.error('Failed to set icon'));
+      callback?.({ key, style: 'line', color: c, kind: 'preset' });
     }
+    close();
+    search$.set('');
   };
 
   // Random selection from the entire filtered set (O(1) selection, no extra allocations)
