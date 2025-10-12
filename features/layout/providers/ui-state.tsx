@@ -15,6 +15,7 @@ export type UIState = {
   iconPicker: {
     tab: 'icons' | 'emoji' | 'upload';
     iconColor: Color;
+    skinTone: 'neutral' | '1f3fb' | '1f3fc' | '1f3fd' | '1f3fe' | '1f3ff';
   };
 };
 
@@ -22,6 +23,7 @@ const DEFAULT_UI_STATE: UIState = {
   iconPicker: {
     tab: 'icons',
     iconColor: 'default',
+    skinTone: 'neutral',
   },
 };
 

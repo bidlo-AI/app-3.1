@@ -37,13 +37,12 @@ import {
 // Constants
 // --------------------------------
 const RECENT_EMOJIS_KEY = 'emoji:recent';
-const SKIN_TONE_KEY = 'emoji:skinTone';
 
 // BottomSectionsBar handles icon map locally to minimize dependencies here
-import type { SkinToneKey } from './types';
 import type { EmojiData } from './lib';
 import { fromUnified, withSkinToneUnified } from './lib';
 import { TooltipProvider } from '@/components/ui/tooltip';
+import { uiState$ } from '@/features/layout/providers/ui-state';
 
 export function EmojiTab({
   blockId,
@@ -60,11 +59,6 @@ export function EmojiTab({
   const state$ = useObservable({
     data: null as null | Record<CategoryKey, EmojiData[]>,
     recentList: [] as string[], // unified w/ tone if applied
-    skinTone: ((): SkinToneKey => {
-      if (typeof window === 'undefined') return 'neutral';
-      const v = window.localStorage.getItem(SKIN_TONE_KEY) as SkinToneKey | null;
-      return v && SKIN_TONES.some((t) => t.key === v) ? v : 'neutral';
-    })(),
     debouncedQuery: '',
     visibleCount: INITIAL_VISIBLE,
     hasMore: () => state$.visibleCount.get() < state$.filteredAllCount.get(),
@@ -73,7 +67,7 @@ export function EmojiTab({
     // Derived sets
     filteredAllGroups: () => {
       const q = normalizeForSearch(state$.debouncedQuery.get());
-      const tone = state$.skinTone.get();
+      const tone = uiState$.iconPicker.skinTone.get();
       const data = state$.data.get();
       if (!data) return [] as { key: CategoryKey; label: string; items: string[] }[];
       const groups = CATEGORY_ORDER.map(({ key, label }) => {
@@ -137,14 +131,9 @@ export function EmojiTab({
   );
   useEffect(() => subscribeDebouncedSearch(search$, SEARCH_DEBOUNCE_MS, onDebounced), [search$, onDebounced]);
 
-  const handleToneChange = (tone: SkinToneKey) => {
-    state$.skinTone.set(tone);
-    if (typeof window !== 'undefined') window.localStorage.setItem(SKIN_TONE_KEY, tone);
-  };
-
   // Stable selection handler to avoid re-renders in memoized children
   const handleSelect = React.useCallback(
-    async (unified: string) => {
+    async (unified: string, opts?: { close?: boolean; clearSearch?: boolean }) => {
       // Update recents (dedupe + persist) via shared helper
       state$.recentList.set((prev) => upsertRecent(RECENT_EMOJIS_KEY, prev, unified, RECENT_LIMIT));
       const emojiStr = fromUnified(unified);
@@ -152,8 +141,8 @@ export function EmojiTab({
         void setEmoji({ blockId, emoji: emojiStr }).catch(() => toast.error('Failed to set emoji'));
         callback?.({ emoji: emojiStr, kind: 'emoji' });
       }
-      close();
-      search$.set('');
+      if (opts?.close !== false) close();
+      if (opts?.clearSearch !== false) search$.set('');
     },
     [blockId, setEmoji, callback, close, search$, state$],
   );
@@ -167,7 +156,7 @@ export function EmojiTab({
 
   const handleRandom = () => {
     const u = pickRandomUnified();
-    if (u) void handleSelect(u);
+    if (u) void handleSelect(u, { close: false });
   };
 
   // Resolve a human-friendly name for a given unified code.
@@ -200,7 +189,6 @@ export function EmojiTab({
   const groupsLimited = use$(state$.groupsLimited);
   const groupsAll = use$(state$.filteredAllGroups);
   const filteredRecent = use$(state$.filteredRecent);
-  const skinTone = use$(state$.skinTone);
   const currentSection = use$(state$.currentSection);
 
   // Refs for scrolling
@@ -328,7 +316,7 @@ export function EmojiTab({
     <TooltipProvider delayDuration={200}>
       <div className="">
         <Command shouldFilter={false}>
-          <Header search$={search$} onRandom={handleRandom} skinTone={skinTone} onToneChange={handleToneChange} />
+          <Header search$={search$} onRandom={handleRandom} tone$={uiState$.iconPicker.skinTone} />
           <div className="relative pt-1">
             <CommandList ref={listRef as unknown as React.Ref<HTMLDivElement>} onScroll={onScroll}>
               <Show if={() => state$.filteredAllCount.get() === 0}>

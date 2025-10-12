@@ -37,11 +37,13 @@ export function IconSelector({
   const open = use$(popOverState$[pid].open) ?? false;
 
   return (
-    <Popover open={open} onOpenChange={(open) => popOverState$[pid].open.set(open)}>
+    <Popover open={open} onOpenChange={popOverState$[pid].open.set}>
       <PopoverTrigger asChild>
         <div className={cn('inline-flex cursor-pointer', className)}>{children}</div>
       </PopoverTrigger>
-      <Content blockId={blockId} close={() => popOverState$[pid].open.set(false)} callback={callback} />
+      <PopoverContent className="w-96 p-0">
+        <Content blockId={blockId} close={() => popOverState$[pid].open.set(false)} callback={callback} />
+      </PopoverContent>
     </Popover>
   );
 }
@@ -72,7 +74,7 @@ const Content = ({
   }
 
   return (
-    <PopoverContent className="w-96 p-0">
+    <>
       <PopoverGroup>
         <div className="flex items-center p-0.5">
           <TabButton tab$={uiState$.iconPicker.tab} label="emoji" />
@@ -93,7 +95,7 @@ const Content = ({
           upload: () => <UploadTab blockId={blockId} onDone={close} callback={callback} />,
         }}
       </Switch>
-    </PopoverContent>
+    </>
   );
 };
 

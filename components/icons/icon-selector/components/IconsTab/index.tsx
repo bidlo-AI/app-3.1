@@ -6,7 +6,7 @@ import { useEffect, useRef, useCallback } from 'react';
 import { useMutation } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import { IconGrid } from './compoents/icon-grid';
-import { Header } from './compoents/incon-header';
+import { Header } from './compoents/header';
 import { useMount } from '@legendapp/state/react';
 import dynamicIconImports from 'lucide-react/dynamicIconImports';
 import { Show, use$, useObservable } from '@legendapp/state/react';
@@ -102,7 +102,7 @@ export function IconsTab({
 
   // handlers
   const handleSelect = useCallback(
-    async (key: string) => {
+    async (key: string, opts?: { close?: boolean; clearSearch?: boolean }) => {
       if (!state$.keyExists(key)) return toast.error('Icon not found');
       // Record recent with dedupe + persist via shared helper
       state$.recentList.set((prev) => upsertRecent(RECENT_ICONS_KEY, prev, key, RECENT_LIMIT, normalizeKey));
@@ -111,8 +111,8 @@ export function IconsTab({
         void setPreset({ blockId, key, style: 'line', color: c }).catch(() => toast.error('Failed to set icon'));
         callback?.({ key, style: 'line', color: c, kind: 'preset' });
       }
-      close();
-      search$.set('');
+      if (opts?.close !== false) close();
+      if (opts?.clearSearch !== false) search$.set('');
     },
     [blockId, setPreset, callback, close, search$, state$],
   );
@@ -126,7 +126,7 @@ export function IconsTab({
 
   const handleRandom = () => {
     const k = pickRandomKey();
-    if (k) void handleSelect(k);
+    if (k) void handleSelect(k, { close: false });
   };
 
   const scrollRafIdRef = useRef<number | null>(null);
