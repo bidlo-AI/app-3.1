@@ -22,19 +22,15 @@ export const Hero = ({ preloaded }: { preloaded: Preloaded<typeof api.blocks.get
     description: 'example description',
   });
 
-  //listener
-  useEffect(() => {
-    const description = state$.description.get();
-    if (description !== data.block.description) state$.show_description.set(true);
-  }, [data?.block?.description]);
+  // keep icon/title in sync with server
   useEffect(() => {
     const icon = state$.icon.get();
     if (icon !== data.block.icon) state$.icon.set(data.block.icon);
-  }, [data?.block?.icon]);
+  }, [data?.block?.icon, state$]);
   useEffect(() => {
     const title = state$.title.get();
     if (title !== data.block.title) state$.title.set(data.block.title);
-  }, [data?.block?.title]);
+  }, [data?.block?.title, state$]);
 
   //handlers
   const handleSelect = (icon: BlockIcon) => {

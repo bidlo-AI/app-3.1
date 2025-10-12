@@ -50,7 +50,9 @@ export const iconValidator = v.union(
   }),
   v.object({
     kind: v.literal('image'),
-    file_id: fileIdValidator,
+    // Prefer saving a direct URL for immediate rendering; file_id is optional for legacy
+    url: v.optional(v.string()),
+    file_id: v.optional(fileIdValidator),
     crop: v.optional(imageCropValidator),
     variant: v.optional(iconImageVariantValidator),
   }),

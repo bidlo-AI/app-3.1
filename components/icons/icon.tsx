@@ -61,7 +61,11 @@ export function Icon({
   }
 
   if (icon.kind === 'image') {
-    const url = resolveFileUrl?.(icon.file_id);
+    // Prefer a directly stored URL if available; fallback to resolver if provided
+    const directUrl = (icon as unknown as { url?: string })?.url;
+    const fileId = (icon as unknown as { file_id?: Id<'files'> }).file_id;
+    const resolvedUrl = fileId && resolveFileUrl ? resolveFileUrl(fileId) : undefined;
+    const url = directUrl ?? resolvedUrl;
     if (!url) return <Monogram title={title} className={className} />;
 
     // If crop provided as relative {x,y,size} (0..1), map to object-position percent
@@ -105,5 +109,7 @@ function resolveLucide(key: string): LucideIcon | undefined {
     .join('');
   return (Lucide as unknown as Record<string, LucideIcon>)[name];
 }
+
+// Removed LazyImage fallback to avoid requiring Convex provider in low-level component
 
 export default Icon;

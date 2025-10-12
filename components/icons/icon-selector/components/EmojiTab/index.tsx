@@ -39,15 +39,10 @@ import {
 const RECENT_EMOJIS_KEY = 'emoji:recent';
 const SKIN_TONE_KEY = 'emoji:skinTone';
 
-// Emoji categories to display in order with friendly labels
-// CATEGORY_ORDER and LABEL_TO_KEY imported from './lib'
-
 // BottomSectionsBar handles icon map locally to minimize dependencies here
 import type { SkinToneKey } from './types';
 import type { EmojiData } from './lib';
 import { fromUnified, withSkinToneUnified } from './lib';
-
-// Skin tone selector moved to components
 
 export function EmojiTab({
   blockId,

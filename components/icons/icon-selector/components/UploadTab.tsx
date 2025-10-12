@@ -20,6 +20,7 @@ export function UploadTab({
   callback?: (icon: BlockIcon) => void;
 }) {
   const [uploading, setUploading] = React.useState(false);
+  const inputRef = React.useRef<HTMLInputElement | null>(null);
   const prepareUpload = useMutation(api.icons.prepareUploadPageIcon);
   const finalizeUpload = useMutation(api.icons.finalizeUploadPageIcon);
 
@@ -37,11 +38,19 @@ export function UploadTab({
         mime: file.type,
         size: file.size,
       });
-      const res = await fetch(uploadUrl, { method: 'PUT', body: file, headers: { 'Content-Type': file.type } });
+      // Step 2: POST the file to Convex's short-lived upload URL
+      // See: https://docs.convex.dev/file-storage/upload-files
+      const res = await fetch(uploadUrl, { method: 'POST', body: file, headers: { 'Content-Type': file.type } });
       if (!res.ok) throw new Error('Upload failed');
-      await finalizeUpload({ blockId, fileId });
+      const { storageId } = (await res.json()) as { storageId: Id<'_storage'> };
+      // Step 3: Persist the storage id and set the block's icon to this image
+      await finalizeUpload({ blockId, fileId, storageId });
       toast.success('Icon updated');
 
+      // Optimistically update parent with a direct URL if available via finalize
+      // We don't have the URL from finalize response, but Icon component now prefers url if present on block icon.
+      // The parent block should refresh via subscription; invoke callback without waiting.
+      callback?.({ kind: 'image', file_id: fileId } as BlockIcon);
       onDone?.();
     } catch {
       toast.error('Upload failed');
@@ -65,13 +74,22 @@ export function UploadTab({
             <div className="text-muted-foreground text-xs">PNG, JPG, WEBP, AVIF up to 512 KB</div>
           </div>
         </div>
-        <Button variant="secondary" size="sm" disabled={uploading}>
+        <Button
+          variant="secondary"
+          size="sm"
+          disabled={uploading}
+          onClick={(e) => {
+            e.preventDefault();
+            inputRef.current?.click();
+          }}
+        >
           Choose
         </Button>
         <input
           type="file"
           accept="image/png,image/jpeg,image/webp,image/avif"
           className="hidden"
+          ref={inputRef}
           onChange={(e) => {
             const file = e.target.files?.[0];
             if (file) onPickFile(file);
