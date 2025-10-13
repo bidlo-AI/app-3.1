@@ -12,25 +12,26 @@ import { useEffect } from 'react';
 import { BlockIcon } from '@/components/icons/icon-selector/components/IconsTab/types';
 import { Observable } from '@legendapp/state';
 import { use$ } from '@legendapp/state/react';
+import { TitleInput } from './components/title-input';
+
+type HeroState = {
+  icon: BlockIcon;
+  title: string;
+  show_description: boolean;
+  description: string;
+};
 
 export const Hero = ({ preloaded }: { preloaded: Preloaded<typeof api.blocks.getBlock> }) => {
-  const data = usePreloadedQuery(preloaded);
+  // const data = usePreloadedQuery(preloaded);
   const state$ = useObservable({
-    icon: data.block.icon,
-    title: data.block.title,
+    icon: preloaded._valueJSON.block.icon,
+    title: preloaded._valueJSON.block.title,
     show_description: true,
     description: 'example description',
-  });
+  }) as Observable<HeroState>;
 
-  // keep icon/title in sync with server
-  useEffect(() => {
-    const icon = state$.icon.get();
-    if (icon !== data.block.icon) state$.icon.set(data.block.icon);
-  }, [data?.block?.icon, state$]);
-  useEffect(() => {
-    const title = state$.title.get();
-    if (title !== data.block.title) state$.title.set(data.block.title);
-  }, [data?.block?.title, state$]);
+  // hooks
+  const id = useBlock({ state$, preloaded });
 
   //handlers
   const handleSelect = (icon: BlockIcon) => {
@@ -38,10 +39,10 @@ export const Hero = ({ preloaded }: { preloaded: Preloaded<typeof api.blocks.get
   };
 
   return (
-    <div className="group/hero @sm/page:px-12 px-4">
+    <div className="group/hero @sm/page:px-12 px-4 w-full">
       {/* <div>Cover image</div> */}
       <div className="-ml-2 flex py-1 items-center group-hover/hero:opacity-100 opacity-0 transition-opacity duration-150">
-        <AddIcon icon={state$.icon} blockId={data.block._id} />
+        <AddIcon icon={state$.icon} blockId={id} />
         <Button variant="ghost_muted" size="xs">
           <ImageIcon className="size-4" />
           Add cover
@@ -55,13 +56,13 @@ export const Hero = ({ preloaded }: { preloaded: Preloaded<typeof api.blocks.get
           Add tabs
         </Button>
       </div>
-      <div className="flex items-center">
+      <div className="flex items-center w-full">
         <Show if={state$.icon}>
-          <IconSelector blockId={data.block._id} callback={handleSelect}>
+          <IconSelector blockId={id} callback={handleSelect}>
             <IconContent icon$={state$.icon} title$={state$.title} />
           </IconSelector>
         </Show>
-        <div className="text-[32px] font-bold">Title</div>
+        <TitleInput blockId={id} title$={state$.title} serverTitle={preloaded._valueJSON.block.title} />
       </div>
 
       <Show if={state$.show_description}>
@@ -71,6 +72,28 @@ export const Hero = ({ preloaded }: { preloaded: Preloaded<typeof api.blocks.get
       </Show>
     </div>
   );
+};
+
+const useBlock = ({
+  state$,
+  preloaded,
+}: {
+  state$: Observable<HeroState>;
+  preloaded: Preloaded<typeof api.blocks.getBlock>;
+}) => {
+  const data = usePreloadedQuery(preloaded);
+
+  //listeners
+  useEffect(() => {
+    const icon = state$.icon.get();
+    if (icon !== data.block.icon) state$.icon.set(data.block.icon);
+  }, [data?.block?.icon, state$]);
+  useEffect(() => {
+    const title = state$.title.get();
+    if (title !== data.block.title) state$.title.set(data.block.title);
+  }, [data?.block?.title, state$]);
+
+  return data.block._id;
 };
 
 const IconContent = ({ icon$, title$ }: { icon$: Observable<BlockIcon>; title$: Observable<string> }) => {

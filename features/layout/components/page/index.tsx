@@ -3,12 +3,13 @@ import { Preloaded } from 'convex/react';
 import { Hero } from './components/Hero';
 import { api } from '@/convex/_generated/api';
 import { preloadedQueryResult } from 'convex/nextjs';
+import { PageProvider } from './provider';
 
 export default async function Page({ preloaded }: { preloaded: Preloaded<typeof api.blocks.getBlock> }) {
   const data = await preloadedQueryResult(preloaded);
 
   return (
-    <>
+    <PageProvider data={data} preloaded={preloaded}>
       <Hero preloaded={preloaded} />
       <div className="@sm/page:px-12 px-4 flex flex-col gap-4">
         <div className="">
@@ -29,6 +30,7 @@ export default async function Page({ preloaded }: { preloaded: Preloaded<typeof 
           )}
         </div>
 
+        <pre>{JSON.stringify({ preloaded }, null, 2)}</pre>
         {/* Children list */}
 
         {data.children.length > 0 && (
@@ -46,6 +48,6 @@ export default async function Page({ preloaded }: { preloaded: Preloaded<typeof 
           </div>
         )}
       </div>
-    </>
+    </PageProvider>
   );
 }

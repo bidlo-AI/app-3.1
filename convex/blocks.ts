@@ -316,3 +316,29 @@ export const reorderTopLevelPages = mutation({
     return { success: true } as const;
   },
 });
+
+// Update a block's title with permission checks
+export const updateTitle = mutation({
+  args: { blockId: blockIdValidator, title: v.string() },
+  handler: async (ctx, args) => {
+    const block = await ctx.db.get(args.blockId);
+    if (!block) throw new Error('Block not found');
+
+    const { workos_user_id, workos_org_id } = await getSessionInfo(ctx);
+
+    // Basic permission guard aligned with getBlock
+    if (block.workos_org_id !== workos_org_id) throw new Error('Forbidden');
+    if (block.scope === 'private' && block.owner_id !== workos_user_id) throw new Error('Forbidden');
+    if (block.scope === 'team') {
+      const membership = await ctx.db
+        .query('team_members')
+        .withIndex('by_team_user', (q) => q.eq('team_id', block.team_id!).eq('workos_user_id', workos_user_id))
+        .first();
+      if (!membership) throw new Error('Forbidden');
+    }
+
+    const now = Date.now();
+    await ctx.db.patch(args.blockId, { title: args.title, updated_at: now, updated_by: workos_user_id });
+    return { success: true } as const;
+  },
+});
