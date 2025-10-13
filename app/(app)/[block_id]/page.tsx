@@ -10,11 +10,6 @@ import Page from '@/features/layout/components/page';
 
 export default async function BlockPage({ params }: { params: Promise<{ block_id: string }> }) {
   const { block_id } = await params;
-  // Ignore requests that accidentally route filenames to this dynamic segment
-  if (block_id.includes('.')) {
-    // This ensures we don't pass a bogus id like "favicon.ico" to Convex
-    throw new Error('Invalid block id');
-  }
   const { accessToken } = await withAuth();
   const preloaded = await preloadQuery(
     api.blocks.getBlock,
