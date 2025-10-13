@@ -1,16 +1,16 @@
-import { Header } from '@/features/layout/components/header';
-import { HotkeysProvider } from '@/features/layout/providers/hotkeys';
-import { Sidebar } from '@/features/layout/components/sidebar';
 import { Suspense } from 'react';
-import { withAuth } from '@workos-inc/authkit-nextjs';
-import { preloadQuery, preloadedQueryResult } from 'convex/nextjs';
-import { api } from '@/convex/_generated/api';
-import { SidebarProvider } from '@/features/layout/components/sidebar/providers/SidebarProvider';
-import { AgentPanel } from '@/features/agent/features/panel';
-import { AgentProvider } from '@/features/agent/features/panel/providers/agentProvider';
-import { CommandProvider } from '@/features/layout/components/command/providers/CommandProvider';
 import { redirect } from 'next/navigation';
+import { api } from '@/convex/_generated/api';
+import { withAuth } from '@workos-inc/authkit-nextjs';
+import { AgentPanel } from '@/features/agent/features/panel';
+import { Header } from '@/features/layout/components/header';
+import { Sidebar } from '@/features/layout/components/sidebar';
 import { AddTeamDialog } from '@/features/teams/add-team-dialog';
+import { preloadQuery, preloadedQueryResult } from 'convex/nextjs';
+import { HotkeysProvider } from '@/features/layout/providers/hotkeys';
+import { AgentProvider } from '@/features/agent/features/panel/providers/agentProvider';
+import { SidebarProvider } from '@/features/layout/components/sidebar/providers/SidebarProvider';
+import { CommandProvider } from '@/features/layout/components/command/providers/CommandProvider';
 
 export default async function Layout({ children }: { children: React.ReactNode }) {
   const { accessToken } = await withAuth();

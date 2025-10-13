@@ -7,11 +7,14 @@ import { api } from '@/convex/_generated/api';
 import type { Id } from '@/convex/_generated/dataModel';
 
 import Page from '@/features/layout/components/page';
-// import { RendersCounter } from './renders-counter';
 
 export default async function BlockPage({ params }: { params: Promise<{ block_id: string }> }) {
   const { block_id } = await params;
-  // Authenticate and use Convex preloading for SSR + hydration
+  // Ignore requests that accidentally route filenames to this dynamic segment
+  if (block_id.includes('.')) {
+    // This ensures we don't pass a bogus id like "favicon.ico" to Convex
+    throw new Error('Invalid block id');
+  }
   const { accessToken } = await withAuth();
   const preloaded = await preloadQuery(
     api.blocks.getBlock,
@@ -41,28 +44,3 @@ export default async function BlockPage({ params }: { params: Promise<{ block_id
     </>
   );
 }
-
-// const Chat = ({ block_id }: { block_id: string }) => {
-//   return (
-//     <div className="flex size-full flex-col justify-between p-4">
-//       <div>
-//         <div>Chat</div>
-//         <div className="text-muted-foreground">Block {block_id}</div>
-//       </div>
-
-//       {/* THE CHAT BAR */}
-//       <div id="chat-input" className="shadow-sm text-base rounded-3xl bg-muted border h-fit min-h-12 w-full px-4 py-3">
-//         <span className="text-muted-foreground-opaque">Search or Ask anything...</span>
-//       </div>
-//     </div>
-//   );
-// };
-
-// const Page = ({ block_id }: { block_id: string }) => {
-//   return (
-//     <div>
-//       <div>Page</div>
-//       <div className="text-muted-foreground">Block {block_id}</div>
-//     </div>
-//   );
-// };

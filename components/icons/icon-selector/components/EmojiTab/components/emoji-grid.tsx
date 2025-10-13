@@ -25,7 +25,6 @@ export const EmojiGrid = React.memo(function EmojiGrid({
 }: {
   items: string[];
   onSelect: (unified: string) => void;
-  // Optional resolver to display human names; falls back to the emoji char
   getLabel?: (unified: string) => string;
 }) {
   return (

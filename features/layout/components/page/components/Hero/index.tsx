@@ -7,7 +7,7 @@ import { IconSelector } from '@/components/icons/icon-selector';
 import Icon from '@/components/icons/icon';
 import { Show, useObservable, Memo } from '@legendapp/state/react';
 import { Button } from '@/components/ui/button';
-import { ImageIcon, InfoIcon } from 'lucide-react';
+import { AppWindow, ImageIcon, InfoIcon } from 'lucide-react';
 import { useEffect } from 'react';
 import { BlockIcon } from '@/components/icons/icon-selector/components/IconsTab/types';
 import { Observable } from '@legendapp/state';
@@ -49,6 +49,10 @@ export const Hero = ({ preloaded }: { preloaded: Preloaded<typeof api.blocks.get
         <Button variant="ghost_muted" size="xs">
           <InfoIcon className="size-4" />
           Add description
+        </Button>
+        <Button variant="ghost_muted" size="xs">
+          <AppWindow className="size-4" />
+          Add tabs
         </Button>
       </div>
       <div className="flex items-center">
