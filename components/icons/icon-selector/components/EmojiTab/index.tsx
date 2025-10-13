@@ -314,48 +314,45 @@ export function EmojiTab({
 
   return (
     <TooltipProvider delayDuration={200}>
-      <div className="">
-        <Command shouldFilter={false}>
-          <Header search$={search$} onRandom={handleRandom} tone$={uiState$.iconPicker.skinTone} />
-          <div className="relative pt-1">
-            <CommandList ref={listRef as unknown as React.Ref<HTMLDivElement>} onScroll={onScroll}>
-              <Show if={() => state$.filteredAllCount.get() === 0}>
-                <div className="py-6 text-center text-sm text-muted-foreground">No results</div>
-              </Show>
-              <Show if={() => state$.filteredRecent.get().length > 0}>
-                <div ref={recentRef}>
-                  <CommandGroup heading="Recent" className="text-inherit">
-                    <EmojiGrid items={filteredRecent} onSelect={handleSelect} getLabel={getEmojiName} />
+      <Command shouldFilter={false}>
+        <Header search$={search$} onRandom={handleRandom} tone$={uiState$.iconPicker.skinTone} />
+        <div className="relative pt-1">
+          <CommandList ref={listRef as unknown as React.Ref<HTMLDivElement>} onScroll={onScroll}>
+            <Show if={() => state$.filteredAllCount.get() === 0}>
+              <div className="py-6 text-center text-sm text-muted-foreground">No results</div>
+            </Show>
+            <Show if={() => state$.filteredRecent.get().length > 0}>
+              <div ref={recentRef}>
+                <CommandGroup heading="Recent" className="text-inherit">
+                  <EmojiGrid items={filteredRecent} onSelect={handleSelect} getLabel={getEmojiName} />
+                </CommandGroup>
+              </div>
+            </Show>
+            {groupsLimited.map((g) => {
+              const key = LABEL_TO_KEY[g.label];
+              return (
+                <div
+                  key={g.label}
+                  ref={(el) => {
+                    groupRefs.current[key] = el;
+                  }}
+                >
+                  <CommandGroup heading={g.label} className="text-inherit">
+                    <EmojiGrid items={g.items} onSelect={handleSelect} getLabel={getEmojiName} />
                   </CommandGroup>
                 </div>
-              </Show>
-              {groupsLimited.map((g) => {
-                const key = LABEL_TO_KEY[g.label];
-                return (
-                  <div
-                    key={g.label}
-                    ref={(el) => {
-                      groupRefs.current[key] = el;
-                    }}
-                  >
-                    <CommandGroup heading={g.label} className="text-inherit">
-                      <EmojiGrid items={g.items} onSelect={handleSelect} getLabel={getEmojiName} />
-                    </CommandGroup>
-                  </div>
-                );
-              })}
-            </CommandList>
-            <Fades />
-          </div>
-        </Command>
-        {/* Bottom sections bar extracted for reuse and clarity */}
-        <SectionNav
-          hasRecent$={state$.hasRecent}
-          currentSection={currentSection}
-          groups={groupsAll.map((g) => ({ key: g.key, label: g.label }))}
-          onScrollToSection={handleScrollToSection}
-        />
-      </div>
+              );
+            })}
+          </CommandList>
+          <Fades />
+        </div>
+      </Command>
+      <SectionNav
+        hasRecent$={state$.hasRecent}
+        currentSection={currentSection}
+        groups={groupsAll.map((g) => ({ key: g.key, label: g.label }))}
+        onScrollToSection={handleScrollToSection}
+      />
     </TooltipProvider>
   );
 }

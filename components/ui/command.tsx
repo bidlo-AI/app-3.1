@@ -48,16 +48,20 @@ function CommandInput({
   className,
   containerClassName,
   showIcon = true,
+  focusable = false,
   ...props
 }: React.ComponentProps<typeof CommandPrimitive.Input> & {
   containerClassName?: string;
   showIcon?: boolean;
+  focusable?: boolean;
 }) {
   return (
     <div
       data-slot="command-input-wrapper"
       className={cn(
-        'flex h-9 items-center gap-2 border-b px-2  focus-within:ring-2 focus-within:ring-primary',
+        'flex h-9 items-center gap-2 border-b px-2',
+        focusable && 'focus-within:ring-2 focus-within:ring-primary',
+
         containerClassName,
       )}
     >

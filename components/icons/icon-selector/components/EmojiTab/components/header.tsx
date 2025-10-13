@@ -25,7 +25,7 @@ export function Header({
       <SearchInput search$={search$} />
       <Tooltip>
         <TooltipTrigger asChild>
-          <Button aria-label="Random emoji" variant="outline" size="icon" onClick={onRandom}>
+          <Button focusable aria-label="Random emoji" variant="outline" size="icon" onClick={onRandom}>
             <ArrowRightLeft className="size-4" />
           </Button>
         </TooltipTrigger>

@@ -26,7 +26,7 @@ export const Header = ({
       <SearchInput search$={search$} />
       <Tooltip>
         <TooltipTrigger asChild>
-          <Button aria-label="Random icon" variant="outline" size="icon" onClick={onRandom}>
+          <Button focusable aria-label="Random icon" variant="outline" size="icon" onClick={onRandom}>
             <ArrowRightLeft className="size-4" />
           </Button>
         </TooltipTrigger>
@@ -35,7 +35,7 @@ export const Header = ({
       <Tooltip>
         <ColorSelector value={current} onChange={(c) => color$.set(c)} align="start">
           <TooltipTrigger asChild>
-            <Button aria-label="Choose color" variant="outline" size="icon">
+            <Button focusable aria-label="Choose color" variant="outline" size="icon">
               <div className="size-3 rounded-full" style={triggerStyle} />
             </Button>
           </TooltipTrigger>

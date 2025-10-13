@@ -23,6 +23,7 @@ export const SearchInput = ({ search$ }: { search$: Observable<string> }) => {
         placeholder="Filter..."
         containerClassName="px-2 border-input bg-input rounded-sm h-7"
         autoFocus
+        focusable
       />
       <Show if={search$.get()}>
         <Button

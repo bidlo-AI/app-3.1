@@ -29,6 +29,19 @@ function PopoverContent({
   // const user$ = useUser();
   // const color = use$(user$.color);
   const color = 'blue';
+  // Determine the minimum space we must leave to the viewport edges.
+  // We use the larger of sideOffset and collisionPadding (if object, the max side) to compute clamped max sizes.
+  const collisionPaddingNumber =
+    typeof collisionPadding === 'number'
+      ? collisionPadding
+      : Math.max(
+          collisionPadding?.top ?? 0,
+          collisionPadding?.right ?? 0,
+          collisionPadding?.bottom ?? 0,
+          collisionPadding?.left ?? 0,
+        );
+  const viewportMargin = Math.max(sideOffset ?? 0, collisionPaddingNumber);
+
   const style = {
     '--color-primary': `var(--${color ?? 'blue'}-primary)`,
     ...props.style,
@@ -37,12 +50,17 @@ function PopoverContent({
     <PopoverPrimitive.Portal>
       <PopoverPrimitive.Content
         data-slot="popover-content"
-        style={style}
+        style={{
+          ...style,
+          // Constrain width so content never overflows the viewport.
+          // Use dvh for better mobile behavior; fall back to vw for width which is stable.
+          maxWidth: style.maxWidth ?? `calc(100vw - ${viewportMargin * 2}px)`,
+        }}
         align={align}
         sideOffset={sideOffset}
         collisionPadding={collisionPadding}
         className={cn(
-          'shadow-popover bg-popover text-popover-foreground z-50 w-72 origin-(--radix-popover-content-transform-origin) rounded-md outline-hidden',
+          'shadow-popover bg-popover text-popover-foreground z-50 w-72 origin-(--radix-popover-content-transform-origin) rounded-md outline-hidden max-h-(--radix-popover-content-available-height) overflow-x-hidden overflow-y-auto',
           noAnimation
             ? 'data-[state=open]:animate-none data-[state=closed]:animate-none'
             : 'data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2',

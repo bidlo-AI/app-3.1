@@ -41,7 +41,7 @@ export function IconSelector({
       <PopoverTrigger asChild>
         <div className={cn('inline-flex cursor-pointer', className)}>{children}</div>
       </PopoverTrigger>
-      <PopoverContent className="w-96 p-0">
+      <PopoverContent className="w-96 p-0 overflow-hidden flex flex-col">
         <Content blockId={blockId} close={() => popOverState$[pid].open.set(false)} callback={callback} />
       </PopoverContent>
     </Popover>

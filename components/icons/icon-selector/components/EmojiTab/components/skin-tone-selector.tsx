@@ -15,7 +15,7 @@ export function SkinToneSelector({ value, onChange }: { value: SkinToneKey; onCh
       <Tooltip>
         <TooltipTrigger asChild>
           <PopoverTrigger asChild>
-            <Button aria-label="Choose skin tone" variant="outline" size="icon">
+            <Button focusable aria-label="Choose skin tone" variant="outline" size="icon">
               <span className="text-xl leading-none select-none">{fromUnified(unified)}</span>
             </Button>
           </PopoverTrigger>
