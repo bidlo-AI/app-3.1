@@ -14,7 +14,4 @@ export const config = {
     // Always run for API routes
     '/(api|trpc)(.*)',
   ],
-
-  // // Ensure middleware runs on all paths so withAuth always receives the header
-  // matcher: ['/:path*'],
 };

@@ -3,7 +3,7 @@ import { NavLink } from './nav-link';
 
 export const Automations = () => (
   <NavLink
-    href="/apps"
+    href="/automations"
     aria-label="Automations"
     label="Automations"
     icon={<GitFork className="rotate-90 size-4.5" />}
