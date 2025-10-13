@@ -10,7 +10,7 @@ export default async function Page({ preloaded }: { preloaded: Preloaded<typeof 
   return (
     <>
       <Hero preloaded={preloaded} />
-      <div className="sm:px-12 px-4 flex flex-col gap-4">
+      <div className="@sm/page:px-12 px-4 flex flex-col gap-4">
         <div className="">
           <div className="text-base font-semibold">{data.block.title}</div>
           <div className="text-muted-foreground text-sm">

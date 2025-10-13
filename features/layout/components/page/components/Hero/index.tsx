@@ -38,7 +38,7 @@ export const Hero = ({ preloaded }: { preloaded: Preloaded<typeof api.blocks.get
   };
 
   return (
-    <div className="group/hero sm:px-12 px-4">
+    <div className="group/hero @sm/page:px-12 px-4">
       {/* <div>Cover image</div> */}
       <div className="-ml-2 flex py-1 items-center group-hover/hero:opacity-100 opacity-0 transition-opacity duration-150">
         <AddIcon icon={state$.icon} blockId={data.block._id} />
