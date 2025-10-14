@@ -2,35 +2,26 @@
 
 import { createContext, useContext, useEffect } from 'react';
 import { Observable, mergeIntoObservable } from '@legendapp/state';
-import { Doc } from '@/convex/_generated/dataModel';
 import { useObservable } from '@legendapp/state/react';
 import { Preloaded, usePreloadedQuery } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 
-type PageProviderState = {
-  icon: Doc<'blocks'>['icon'];
-  title: Doc<'blocks'>['title'];
-  show_description: boolean;
-  description: string;
-};
+// Use the API return type as the base shape and add a derived field
+type PageState = (typeof api.blocks.getBlock._returnType)['block'];
 
-export const PageProviderContext = createContext<Observable<PageProviderState> | null>(null);
+export const PageProviderContext = createContext<Observable<PageState> | null>(null);
 
+// Provider for the page state uses observables to keep the state in sync without causing re-renders
 export const PageProvider = ({
   data,
   preloaded,
   children,
 }: {
-  data: Doc<'blocks'>;
+  data: typeof api.blocks.getBlock._returnType;
   preloaded: Preloaded<typeof api.blocks.getBlock>;
   children: React.ReactNode;
 }) => {
-  const state$ = useObservable({
-    icon: data.icon,
-    title: data.title,
-    show_description: true,
-    description: 'example description',
-  }) as Observable<PageProviderState>;
+  const state$ = useObservable(data.block);
 
   return (
     <PageProviderContext.Provider value={state$}>
@@ -45,14 +36,11 @@ const PageListener = ({
   state$,
 }: {
   preloaded: Preloaded<typeof api.blocks.getBlock>;
-  state$: Observable<PageProviderState>;
+  state$: Observable<PageState>;
 }) => {
   const data = usePreloadedQuery(preloaded);
   useEffect(() => {
-    mergeIntoObservable(state$, data.block, {
-      icon: 'icon',
-      title: 'title',
-    });
+    mergeIntoObservable(state$, data.block);
   }, [data.block, state$]);
 
   return null;

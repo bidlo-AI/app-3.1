@@ -1,7 +1,7 @@
-import { Favorites } from '@/features/blocks/components/header/favorites';
-import { Presence } from '@/features/blocks/components/header/presence';
+import { Favorites } from '@/features/layout/components/header/components/block-actions/favorites';
+import { Presence } from '@/features/layout/components/header/components/presence';
 import { withAuth } from '@workos-inc/authkit-nextjs';
-import { More } from '@/features/blocks/components/header/more';
+import { More } from '@/features/layout/components/header/components/block-actions/more';
 import { preloadQuery } from 'convex/nextjs';
 import { api } from '@/convex/_generated/api';
 import type { Id } from '@/convex/_generated/dataModel';

@@ -1,65 +1,49 @@
 'use client';
 
 import { useCallback, useEffect, useRef } from 'react';
-import { Input$ } from '@/components/ui/input';
+import EditableH1 from '@/features/blocks/components/editable-h1';
 import { useMutation } from 'convex/react';
 import { api } from '@/convex/_generated/api';
-import type { Id } from '@/convex/_generated/dataModel';
-import type { Observable } from '@legendapp/state';
 import { use$ } from '@legendapp/state/react';
+import { usePage } from '../../../provider';
 
-type TitleInputProps = {
-  blockId: Id<'blocks'>;
-  title$: Observable<string>;
-  serverTitle?: string;
-};
+// Editable title as Notion-style contentEditable h1 with debounced autosave.
+export function TitleInput() {
+  const page$ = usePage();
 
-// Editable title with debounced autosave and immediate save on blur/Enter.
-export function TitleInput({ blockId, title$, serverTitle }: TitleInputProps) {
-  const updateTitle = useMutation(api.blocks.updateTitle);
+  const updateBlock = useMutation(api.blocks.updateBlock);
 
   // Track last saved value to avoid redundant writes
-  const lastSavedTitleRef = useRef<string | undefined>(serverTitle);
+  const lastSavedTitleRef = useRef<string | undefined>(page$.title.get());
   useEffect(() => {
-    lastSavedTitleRef.current = serverTitle;
-  }, [serverTitle]);
+    lastSavedTitleRef.current = page$.title.get();
+  }, [page$.title]);
 
-  // Debounce timer and reactive value for dependency
-  const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const currentTitle = use$(title$);
+  // Debounce via PlainEditable's debounceMs; also flush on blur
+  const currentTitle = use$(page$.title);
 
-  const flushSave = useCallback(async () => {
-    const value = title$.get();
-    if (value === lastSavedTitleRef.current) return;
-    await updateTitle({ blockId, title: value });
-    lastSavedTitleRef.current = value;
-  }, [blockId, title$, updateTitle]);
-
-  useEffect(() => {
-    if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
-    typingTimerRef.current = setTimeout(() => {
-      void flushSave();
-    }, 500);
-    return () => {
-      if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
-    };
-  }, [currentTitle, flushSave]);
+  const handleCommit = useCallback(
+    async (value: string) => {
+      // Optimistically update local observable for immediate UX feedback
+      if (value !== (page$.title.get() ?? '')) {
+        page$.title.set(value);
+      }
+      // De-dupe network writes
+      if (value === (lastSavedTitleRef.current ?? '')) return;
+      await updateBlock({ blockId: page$._id.get(), title: value });
+      lastSavedTitleRef.current = value;
+    },
+    [page$._id, page$.title, updateBlock],
+  );
 
   return (
-    <Input$
-      $value={title$}
+    <EditableH1
+      initialValue={currentTitle ?? ''}
       placeholder="Untitled"
-      style={{ fontSize: '32px' }}
-      className="truncate w-full font-bold h-auto p-0 border-0 bg-transparent shadow-none rounded-none leading-tight focus-visible:ring-0 focus-visible:border-0"
-      onBlur={() => {
-        void flushSave();
-      }}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter') {
-          e.currentTarget.blur();
-        }
-      }}
+      debounceMs={500}
+      onCommit={handleCommit}
       aria-label="Edit title"
+      style={{ fontSize: '32px' }}
     />
   );
 }

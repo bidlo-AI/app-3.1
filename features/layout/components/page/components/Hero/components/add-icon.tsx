@@ -3,7 +3,7 @@
 import { Button } from '@/components/ui/button';
 import { Smile } from 'lucide-react';
 import { Show } from '@legendapp/state/react';
-import { batch, Observable } from '@legendapp/state';
+import { batch } from '@legendapp/state';
 import { useMutation } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import { toast } from 'sonner';
@@ -11,10 +11,9 @@ import { useEffect, useState } from 'react';
 import { popOverState$ } from '@/features/layout/providers/popover-state';
 import { uiState$ } from '@/features/layout/providers/ui-state';
 
-import type { Doc, Id } from '@/convex/_generated/dataModel';
+import { usePage } from '../../../provider';
 
 // Local alias for the blocks.icon type from Convex schema
-type BlockIcon = Doc<'blocks'>['icon'];
 
 // Minimal helper to convert unified code (e.g. "1F600" or "1F469-1F3FD") to a native emoji
 function fromUnified(unified: string) {
@@ -24,7 +23,8 @@ function fromUnified(unified: string) {
     .join('');
 }
 
-export const AddIcon = ({ icon, blockId }: { icon: Observable<BlockIcon>; blockId: Id<'blocks'> }) => {
+export const AddIcon = () => {
+  const page$ = usePage();
   const setEmoji = useMutation(api.icons.setPageIconEmoji);
   const [emojiData, setEmojiData] = useState<Record<string, Array<{ u: string }>> | null>(null);
 
@@ -44,6 +44,7 @@ export const AddIcon = ({ icon, blockId }: { icon: Observable<BlockIcon>; blockI
   }, []);
 
   const handleClick = async () => {
+    const blockId = page$._id.get();
     try {
       batch(() => {
         uiState$.iconPicker.tab.set('emoji');
@@ -63,7 +64,7 @@ export const AddIcon = ({ icon, blockId }: { icon: Observable<BlockIcon>; blockI
       const emojiChar = fromUnified(unified);
 
       // Optimistic local update
-      icon.set({ kind: 'emoji', emoji: emojiChar });
+      page$.icon.set({ kind: 'emoji', emoji: emojiChar });
 
       // Persist to DB (fire-and-forget, same as EmojiTab)
       setEmoji({ blockId, emoji: emojiChar });
@@ -73,7 +74,7 @@ export const AddIcon = ({ icon, blockId }: { icon: Observable<BlockIcon>; blockI
   };
 
   return (
-    <Show if={() => !icon.get()}>
+    <Show if={() => !page$.icon.get()}>
       <Button variant="ghost_muted" size="xs" onClick={handleClick}>
         <Smile className="size-4" />
         AddIcon

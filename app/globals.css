@@ -816,7 +816,6 @@
 .grid-app-layout .agent {
   grid-area: agent;
 }
-
 .grid-app-layout .content {
   grid-area: content;
 }
@@ -831,4 +830,13 @@
   .grid-app-layout {
     grid-template-columns: 4px auto auto 1fr auto auto auto 4px;
   }
+}
+
+/* ----------------------------------------------------------- */
+/*  TEXT INPUTS   */
+/* ----------------------------------------------------------- */
+[data-placeholder]:empty:before {
+  content: attr(data-placeholder);
+  color: var(--secondary);
+  pointer-events: none;
 }

@@ -118,6 +118,9 @@ export default defineSchema({
 
     // Content
     content: v.optional(v.any()),
+    // Optional short page description and visibility toggle
+    description: v.optional(v.string()),
+    hide_description: v.optional(v.boolean()),
 
     // Lifecycle / audit
     is_archived: v.optional(v.boolean()),

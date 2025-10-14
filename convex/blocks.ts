@@ -48,6 +48,8 @@ export const getBlock = query({
         scope: block.scope,
         icon: block.icon ?? undefined,
         content: block.content ?? null,
+        description: block.description,
+        hide_description: !!block.hide_description,
         createdAt: block.created_at,
         updatedAt: block.updated_at,
       },
@@ -197,6 +199,8 @@ export const createPage = mutation({
     teamId: v.optional(teamIdValidator),
     title: v.optional(v.string()),
     parentId: v.optional(blockIdValidator),
+    description: v.optional(v.string()),
+    hideDescription: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     const { workos_user_id, workos_org_id } = await getSessionInfo(ctx);
@@ -249,6 +253,8 @@ export const createPage = mutation({
       scope: effectiveScope,
       type: 'page',
       title: args.title ?? 'Untitled',
+      description: args.description,
+      hide_description: args.hideDescription ?? undefined,
       parent_id: parentBlock?._id,
       position: now,
       ancestors: parentBlock ? [...(parentBlock.ancestors ?? []), parentBlock._id] : [],
@@ -317,16 +323,25 @@ export const reorderTopLevelPages = mutation({
   },
 });
 
-// Update a block's title with permission checks
-export const updateTitle = mutation({
-  args: { blockId: blockIdValidator, title: v.string() },
+// (updateTitle removed in favor of generic updateBlock)
+
+// Generic, whitelisted block attribute update. Prefer this for simple field patches.
+// Keeps a single permission check path and consistent updated_at/updated_by handling.
+export const updateBlock = mutation({
+  args: {
+    blockId: blockIdValidator,
+    // Whitelisted, optional fields that can be updated in-place
+    title: v.optional(v.string()),
+    description: v.optional(v.string()),
+    hideDescription: v.optional(v.boolean()),
+  },
   handler: async (ctx, args) => {
     const block = await ctx.db.get(args.blockId);
     if (!block) throw new Error('Block not found');
 
     const { workos_user_id, workos_org_id } = await getSessionInfo(ctx);
 
-    // Basic permission guard aligned with getBlock
+    // Same permission model as other block mutations
     if (block.workos_org_id !== workos_org_id) throw new Error('Forbidden');
     if (block.scope === 'private' && block.owner_id !== workos_user_id) throw new Error('Forbidden');
     if (block.scope === 'team') {
@@ -337,8 +352,17 @@ export const updateTitle = mutation({
       if (!membership) throw new Error('Forbidden');
     }
 
+    // Build patch from provided fields only
+    const patch: Partial<Doc<'blocks'>> = {};
+    if (args.title !== undefined) patch.title = args.title;
+    if (args.description !== undefined) patch.description = args.description;
+    if (args.hideDescription !== undefined) patch.hide_description = args.hideDescription;
+
+    // No-op if nothing to update
+    if (Object.keys(patch).length === 0) return { success: true } as const;
+
     const now = Date.now();
-    await ctx.db.patch(args.blockId, { title: args.title, updated_at: now, updated_by: workos_user_id });
+    await ctx.db.patch(args.blockId, { ...patch, updated_at: now, updated_by: workos_user_id });
     return { success: true } as const;
   },
 });
