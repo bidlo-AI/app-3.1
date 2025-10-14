@@ -37,7 +37,7 @@ export const Route = ({
           )}
           <ExpandButton open$={open$} className="group-hover/list-row:opacity-100 opacity-0 absolute -inset-px" />
         </span>
-        <div className="truncate">{title}</div>
+        <div className="truncate">{title ?? 'New page'}</div>
       </div>
     </Link>
   );

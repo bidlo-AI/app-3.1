@@ -39,7 +39,7 @@ export function TitleInput() {
   return (
     <EditableH1
       initialValue={currentTitle ?? ''}
-      placeholder="Untitled"
+      placeholder="New page"
       debounceMs={500}
       onCommit={handleCommit}
       aria-label="Edit title"

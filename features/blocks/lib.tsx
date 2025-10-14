@@ -7,20 +7,14 @@ import { EditableCoreReturn, EditableOptions } from './types';
 // - Commits immediately on blur
 // - Normalizes Enter and paste behavior (single-line vs multiline)
 export function useEditableCore<E extends HTMLElement = HTMLElement>(
-  options: Required<Pick<EditableOptions, 'onCommit'>> &
-    Omit<EditableOptions, 'onCommit'> & { elementRef?: React.RefObject<E> },
+  options: Required<Pick<EditableOptions, 'onCommit'>> & Omit<EditableOptions, 'onCommit'>,
 ): EditableCoreReturn<E> {
-  const { onCommit, initialValue = '', debounceMs = 500, singleLine = false, elementRef } = options;
+  const { onCommit, initialValue = '', debounceMs = 500, singleLine = false } = options;
 
   const editableRef = React.useRef<E | null>(null);
   const isComposingRef = React.useRef<boolean>(false);
   const suppressNextBlurCommitRef = React.useRef<boolean>(false);
   const lastCommittedRef = React.useRef<string>(initialValue);
-  // allow external ref to control focus if provided
-  React.useEffect(() => {
-    if (!elementRef) return;
-    (elementRef as React.MutableRefObject<E | null>).current = editableRef.current as E | null;
-  }, [elementRef]);
 
   const bufferRef = React.useRef<string>(initialValue);
   const initialTextRef = React.useRef<string>(initialValue);
@@ -182,6 +176,20 @@ export function useEditableCore<E extends HTMLElement = HTMLElement>(
     handlePaste,
     handleCompositionStart,
     handleCompositionEnd,
+  };
+}
+
+// Compose multiple refs (callback or ref objects) into a single ref callback
+export function composeRefs<T>(...refs: Array<React.Ref<T> | undefined>) {
+  return (node: T | null) => {
+    for (const ref of refs) {
+      if (!ref) continue;
+      if (typeof ref === 'function') {
+        ref(node);
+      } else {
+        (ref as React.MutableRefObject<T | null>).current = node;
+      }
+    }
   };
 }
 

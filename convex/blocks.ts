@@ -252,7 +252,7 @@ export const createPage = mutation({
       team_id: teamId,
       scope: effectiveScope,
       type: 'page',
-      title: args.title ?? 'Untitled',
+      title: args.title,
       description: args.description,
       hide_description: args.hideDescription ?? undefined,
       parent_id: parentBlock?._id,

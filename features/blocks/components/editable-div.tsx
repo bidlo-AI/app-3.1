@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { editableClassName, useEditableCore } from '../lib';
+import { editableClassName, useEditableCore, composeRefs } from '../lib';
 import { EditableDivProps } from '../types';
 
 // Notion-style contentEditable div (multiline by default)
@@ -36,20 +36,9 @@ export const EditableDiv = React.forwardRef<HTMLDivElement, EditableDivProps>(
       singleLine,
     });
 
-    // Merge internal and forwarded refs without extra re-renders
-    const setRefs = React.useCallback(
-      (node: HTMLDivElement | null) => {
-        (editableRef as React.MutableRefObject<HTMLDivElement | null>).current = node;
-        if (!ref) return;
-        if (typeof ref === 'function') ref(node);
-        else (ref as React.MutableRefObject<HTMLDivElement | null>).current = node;
-      },
-      [ref, editableRef],
-    );
-
     return (
       <div
-        ref={setRefs}
+        ref={composeRefs<HTMLDivElement>(editableRef as React.Ref<HTMLDivElement>, ref)}
         spellCheck={spellCheck}
         contentEditable
         role="textbox"
